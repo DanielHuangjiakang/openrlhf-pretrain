@@ -46,6 +46,14 @@ SHARDS_FINEMATH=4    # >= 1.0B tokens even on the pessimistic estimate
 SHARDS_ALGEBRAIC=6   # >= 0.7B tokens
 SHARDS_TINYGSM=""    # empty = all 17 shards (~2.3B); it is small enough to take whole
 
+# Everything installs into a venv rather than the system interpreter. On Ubuntu
+# 24.04 that is not optional: PEP 668 marks the system Python as
+# externally-managed and pip refuses to touch it. A venv also gives a clean
+# slate for the numpy pin -- Vast images ship numpy 2.x, and OLMo requires <2.
+VENV="$WORK/venv"
+PY="$VENV/bin/python"
+PIP="$VENV/bin/pip"
+
 say() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 
 # --------------------------------------------------------------------------
@@ -55,42 +63,51 @@ step_env() {
   python3 --version
   df -h "$PWD" | tail -1
 
-  say "1/5 python deps"
+  say "1/5 virtualenv + python deps"
+  if [[ ! -x "$PY" ]]; then
+    python3 -m venv "$VENV" 2>/dev/null || {
+      echo "venv module missing, installing"
+      apt-get update -qq && apt-get install -y -qq python3-venv
+      python3 -m venv "$VENV"
+    }
+  fi
+  "$PIP" install -q --upgrade pip setuptools wheel
+
   # vLLM first: it pins torch hard (0.8.1 -> torch 2.6.0), and letting anything
   # else choose torch first guarantees a re-resolve later.
-  pip install -q vllm==0.8.1
-  pip install -q -r requirements.txt
+  "$PIP" install -q vllm==0.8.1
+  "$PIP" install -q -r requirements.txt
   # datatrove is missing from requirements.txt even though data prep needs it.
   # huggingface_hub must stay below 1.0: transformers 4.50 caps it there, and an
   # unpinned install silently pulls 1.x and breaks `from transformers import ...`.
   # Note 1.x also renamed the CLI from `huggingface-cli` to `hf`; on the pinned
   # 0.x the old name is still the right one.
-  pip install -q datatrove "huggingface_hub<1.0"
+  "$PIP" install -q datatrove "huggingface_hub<1.0"
 
   say "2/5 flash-attn"
   # Building from source takes 20-40 min even on 64 cores. Try the matching
   # prebuilt wheel first and fall back to pip only if that 404s.
   local py tv url
-  py="cp$(python3 -c 'import sys; print(f"{sys.version_info.major}{sys.version_info.minor}")')"
-  tv="$(python3 -c 'import torch; print(".".join(torch.__version__.split(".")[:2]))')"
+  py="cp$("$PY" -c 'import sys; print(f"{sys.version_info.major}{sys.version_info.minor}")')"
+  tv="$("$PY" -c 'import torch; print(".".join(torch.__version__.split(".")[:2]))')"
   url="https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4.post1/flash_attn-2.7.4.post1+cu12torch${tv}cxx11abiFALSE-${py}-${py}-linux_x86_64.whl"
   echo "trying $url"
-  pip install -q "$url" || {
+  "$PIP" install -q "$url" || {
     echo "!! prebuilt wheel not found, compiling from source (this is slow)"
-    pip install -q flash-attn==2.7.4.post1 --no-build-isolation
+    "$PIP" install -q flash-attn==2.7.4.post1 --no-build-isolation
   }
 
   say "3/5 local packages"
-  pip install -q -e .
+  "$PIP" install -q -e .
   # --no-deps keeps pip from re-resolving torch/omegaconf behind our back. These
   # are OLMo's actual runtime imports; boto3, google-api-core and rich are all
   # top-level in olmo/util.py, so they are needed even for purely local runs.
-  pip install -q -e OLMo/ --no-deps
-  pip install -q "numpy<2" omegaconf rich boto3 google-cloud-storage tokenizers \
+  "$PIP" install -q -e OLMo/ --no-deps
+  "$PIP" install -q "numpy<2" omegaconf rich boto3 google-cloud-storage tokenizers \
                  cached_path transformers importlib_resources packaging
 
   say "4/5 import check"
-  python3 - <<'PY'
+  "$PY" - <<'PY'
 import olmo, olmo.data, olmo.train           # the training path
 import openrlhf                              # the RL path
 import vllm, flash_attn, datatrove           # inference / data
@@ -102,14 +119,14 @@ PY
   say "5/5 huggingface login"
   # The Llama-2 tokenizer repo is gated. Without access every tokenize run dies
   # on the first file, so fail here instead.
-  python3 - "$TOKENIZER" <<'PY'
+  "$PY" - "$TOKENIZER" <<'PY'
 import sys
 from transformers import AutoTokenizer
 tok = AutoTokenizer.from_pretrained(sys.argv[1])
 assert len(tok) == 32000, f"vocab is {len(tok)}, configs expect 32000"
 print(f"tokenizer OK: {sys.argv[1]}  vocab={len(tok)}  eos={tok.eos_token}/{tok.eos_token_id}")
 PY
-  echo "environment ready"
+  echo "environment ready -- activate it with:  source $VENV/bin/activate"
 }
 
 # --------------------------------------------------------------------------
@@ -118,17 +135,17 @@ tokenize_all() {
   local extra=()
   [[ -n "$smoke" ]] && extra=(--smoke "$smoke")
 
-  python3 pretraining/data/tinygsm_to_tokens.py  --dest "$dest" --tokenizer "$TOKENIZER" \
+  "$PY" pretraining/data/tinygsm_to_tokens.py  --dest "$dest" --tokenizer "$TOKENIZER" \
       ${shards_tg:+--shards "$shards_tg"} "${extra[@]}"
-  python3 pretraining/data/finemath_to_tokens.py --dest "$dest" --tokenizer "$TOKENIZER" \
+  "$PY" pretraining/data/finemath_to_tokens.py --dest "$dest" --tokenizer "$TOKENIZER" \
       --shards "$shards_fm" "${extra[@]}"
-  python3 pretraining/data/proofpile_to_tokens.py --dest "$dest" --tokenizer "$TOKENIZER" \
+  "$PY" pretraining/data/proofpile_to_tokens.py --dest "$dest" --tokenizer "$TOKENIZER" \
       --shards "$shards_as" "${extra[@]}"
 }
 
 build_mix() {
   local data="$1" out="$2" total="$3" holdout="$4"
-  python3 pretraining/data/build_mixture.py \
+  "$PY" pretraining/data/build_mixture.py \
       --data-root "$data" --out-root "$out" \
       --reasoning tinygsm=tinygsm-tokenized \
       --background finemath3=finemath3-tokenized \
@@ -140,7 +157,7 @@ build_mix() {
 # --------------------------------------------------------------------------
 step_smoke() {
   say "smoke: logic check on synthetic files (no downloads)"
-  python3 pretraining/data/test_build_mixture.py
+  "$PY" pretraining/data/test_build_mixture.py
 
   say "smoke: 1 shard / 2000 docs per source"
   rm -rf "$SMOKE_ROOT"
@@ -158,7 +175,7 @@ shares at 0/15/30%, nesting OK. Then run a 50-step training smoke test:
 
   sed -i "s|<PATH_TO_SMOKE_MIXTURES>|$SMOKE_ROOT/mixtures|; s|<PATH_TO_CHECKPOINT>|$WORK/checkpoints|" \\
       pretraining/configs/DEBUG-tiny.yaml
-  torchrun --nproc_per_node=1 OLMo/scripts/train.py pretraining/configs/DEBUG-tiny.yaml
+  $VENV/bin/torchrun --nproc_per_node=1 OLMo/scripts/train.py pretraining/configs/DEBUG-tiny.yaml
 
 EOF
 }
@@ -182,7 +199,7 @@ zero there is no point spending GPU hours on tg15 and tg00.
         pretraining/configs/RL-150M-\$g.yaml
   done
 
-  torchrun --nproc_per_node=4 OLMo/scripts/train.py pretraining/configs/RL-150M-tg30.yaml
+  $VENV/bin/torchrun --nproc_per_node=1 OLMo/scripts/train.py pretraining/configs/RL-150M-tg30.yaml
 
 EOF
 }
