@@ -1,4 +1,4 @@
-run_name: OLMo-150M-4xtg
+run_name: OLMo-150M-tg-1B
 seed: 6198
 dry_run: false
 
@@ -55,7 +55,11 @@ optimizer:
 
 scheduler:
   name: cosine_with_warmup
-  t_warmup: 5000
+  # NOTE: t_warmup is in STEPS (scheduler.units defaults to `steps`), not tokens.
+  # The upstream value of 5000 assumed a full-epoch run of tens of thousands of
+  # steps. Under a fixed 1B-token budget this run is only 1907 steps, so 5000
+  # would mean the LR never finishes warming up. Keep this at ~5% of max_steps.
+  t_warmup: 100
   alpha_f: 0.1
   warmup_min_lr: 0
 
@@ -67,16 +71,40 @@ save_folder: <PATH_TO_CHECKPOINT>/${run_name}
 save_overwrite: false
 
 # Unsharded checkpoints (for ddp)
-save_interval_unsharded: 20000
+# Both intervals used to be larger than the entire run length below (20000 and
+# 2000 vs 1907 total steps), which would mean no checkpoint was ever written
+# mid-run. Scaled down so we get one mid-run checkpoint plus the final one.
+save_interval_unsharded: 1000
 save_num_unsharded_checkpoints_to_keep: 1
-save_interval: 2000
+save_interval: 500
 save_num_checkpoints_to_keep: 1
 
 load_path: null
 
-max_duration: 4ep
-global_train_batch_size: 512
-device_train_microbatch_size: 16
+# --- Compute budget -----------------------------------------------------------
+# Was `4ep`. Epoch-based durations make total compute a function of how much data
+# happens to be in the mixture, so two mixtures are never compute-matched. A `T`
+# suffix means "train on this many tokens" and is handled by Trainer.max_steps
+# (OLMo/olmo/train.py:266).
+#
+#   max_steps = 1e9 / (global_train_batch_size * max_sequence_length)
+#             = 1e9 / (256 * 2048) = 1907
+#
+# stop_at is set explicitly because it otherwise defaults to max_steps + 10
+# (OLMo/olmo/train.py:1116), which overshoots the budget under a `T` duration.
+max_duration: 1e9T
+stop_at: 1907
+
+# Was 512 (1.05M tokens/step), which leaves only 954 steps at a 1B budget. 256
+# halves tokens/step and doubles the number of optimizer steps for the same
+# token count, which is the better trade for a 150M model at this scale.
+global_train_batch_size: 256
+
+# Was 16. At seq_len 2048 that is 32k tokens per microbatch; combined with the
+# 32k-vocab logits tensor it peaks around 19GB, too close to a 24GB card. 8 puts
+# the peak near 11GB with no measurable throughput cost (we are already
+# gradient-accumulating).
+device_train_microbatch_size: 8
 
 precision: amp_bf16
 distributed_strategy: ddp
@@ -89,7 +117,11 @@ max_grad_norm_ratio: null
 speed_monitor:
   window_size: 20
 
-eval_interval: 5000
+# 5000 would never fire in a 1907-step run. NOTE: this still does nothing until
+# an `evaluators:` block is added -- TrainConfig.evaluators defaults to an empty
+# list (OLMo/olmo/config.py:1006), so Trainer.eval() currently iterates over
+# nothing and train loss is the only signal. Held-out evaluators come next.
+eval_interval: 200
 eval_subset_num_batches: -1
 device_eval_batch_size: ${device_train_microbatch_size}
 
