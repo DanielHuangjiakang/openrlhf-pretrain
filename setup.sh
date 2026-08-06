@@ -148,7 +148,12 @@ step_env() {
   # unpinned install silently pulls 1.x and breaks `from transformers import ...`.
   # Note 1.x also renamed the CLI from `huggingface-cli` to `hf`; on the pinned
   # 0.x the old name is still the right one.
-  "$PIP" install -q datatrove "numpy<2" "huggingface_hub<1.0"
+  #
+  # orjson and zstandard are datatrove's optional reader backends, not pulled in
+  # by the base package. Algebraic-Stack ships as zstd-compressed jsonl, so
+  # proofpile_to_tokens.py needs both; without them the run dies only once it
+  # reaches the third source.
+  "$PIP" install -q datatrove "numpy<2" "huggingface_hub<1.0" orjson zstandard
 
   say "4/6 local packages"
   # --no-deps is required, not just tidy: setup.py builds install_requires by
