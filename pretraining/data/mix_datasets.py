@@ -1,3 +1,25 @@
+"""DEPRECATED -- kept for reference. Use build_mixture.py instead.
+
+This is the paper's original mixture builder: a dataset's share is raised by
+symlinking its files N times, which is what the "4x TinyGSM" notation means.
+
+Two problems make it unusable for a controlled comparison:
+
+  * Total compute is not held fixed. Training stops after one epoch, so adding
+    4x TinyGSM makes the epoch longer and the run sees more tokens. Two mixtures
+    built this way were never trained on the same number of tokens.
+  * Shares are only adjustable in whole-dataset multiples, and the resulting
+    share depends on the relative sizes of the corpora rather than being stated
+    anywhere. `as_fm3_8xtg` works out to ~27% TinyGSM, but nothing says so.
+
+build_mixture.py gives every group an identical block count and slices each
+source to an exact share, with the groups' shared data byte-identical.
+
+Also note: line ~51 below calls random.sample() on a set, which raises TypeError
+on Python 3.11+. It only triggers for a weight < 1.0, so the paper's own configs
+never hit it.
+"""
+
 import os
 import random
 
