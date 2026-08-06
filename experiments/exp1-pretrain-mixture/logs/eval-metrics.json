@@ -1,0 +1,6 @@
+{
+  "OLMo-150M-tg30/eval_gsm8k_1": {"tinygsm-code_count": 0.9711902956785443, "tinygsm-code_acc": 0.0663544106167057, "text_count": 0.02880970432145565, "text_acc": 0.0, "final_accuracy": 0.06444275966641395},
+  "OLMo-150M-tg30/eval_gsm8k_64": {"tinygsm-code_count": 0.9462661106899166, "tinygsm-code_acc": 0.04206309464196294, "text_count": 0.03884334723275208, "text_acc": 0.014943580359865812, "final_accuracy": 0.5056861258529188, "final_maj_accuracy": 0.06747536012130402},
+  "OLMo-150M-as_fm3_8xtg/eval_gsm8k_1": {"tinygsm-code_count": 0.9727065959059894, "tinygsm-code_acc": 0.33982852689010135, "text_count": 0.027293404094010616, "text_acc": 0.0, "final_accuracy": 0.3305534495830174},
+  "OLMo-150M-as_fm3_8xtg/eval_gsm8k_64": {"tinygsm-code_count": 0.8912646891584534, "tinygsm-code_acc": 0.25511384026476336, "text_count": 0.10289518574677786, "text_acc": 0.01485148514851485, "final_accuracy": 0.8354814253222138, "final_maj_accuracy": 0.3555724033358605}
+}

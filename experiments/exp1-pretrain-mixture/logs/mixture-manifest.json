@@ -1,0 +1,204 @@
+{
+  "seq_len": 2048,
+  "dtype": "uint16",
+  "bytes_per_block": 4096,
+  "total_tokens_requested": 1000000000.0,
+  "align_to": 256,
+  "total_blocks_per_group": 488192,
+  "holdout_blocks_per_source": 2000,
+  "reasoning_source": "tinygsm",
+  "background_weights": {
+    "finemath3": 1.0,
+    "algebraic-stack": 1.0
+  },
+  "sources": {
+    "tinygsm": {
+      "dir": "/root/openrlhf-pretrain/workspace/tokenized/tinygsm-tokenized",
+      "files": 17,
+      "blocks_total": 1303155,
+      "blocks_usable": 1301155,
+      "blocks_holdout": 2000
+    },
+    "finemath3": {
+      "dir": "/root/openrlhf-pretrain/workspace/tokenized/finemath3-tokenized",
+      "files": 4,
+      "blocks_total": 634280,
+      "blocks_usable": 632280,
+      "blocks_holdout": 2000
+    },
+    "algebraic-stack": {
+      "dir": "/root/openrlhf-pretrain/workspace/tokenized/algebraic-stack-tokenized",
+      "files": 6,
+      "blocks_total": 452720,
+      "blocks_usable": 450720,
+      "blocks_holdout": 2000
+    }
+  },
+  "groups": {
+    "tg00": {
+      "reasoning_fraction": 0.0,
+      "blocks": 488192,
+      "tokens": 999817216,
+      "sources": {
+        "tinygsm": {
+          "files": 0,
+          "blocks": 0,
+          "tokens": 0,
+          "share": 0.0,
+          "pool_fraction": 0.0,
+          "per_file_blocks": {}
+        },
+        "finemath3": {
+          "files": 4,
+          "blocks": 244096,
+          "tokens": 499908608,
+          "share": 0.5,
+          "pool_fraction": 0.3860568102739293,
+          "per_file_blocks": {
+            "00000_00000_shuffled.ds": 60136,
+            "00001_00000_shuffled.ds": 62156,
+            "00002_00000_shuffled.ds": 61350,
+            "00003_00000_shuffled.ds": 60454
+          }
+        },
+        "algebraic-stack": {
+          "files": 6,
+          "blocks": 244096,
+          "tokens": 499908608,
+          "share": 0.5,
+          "pool_fraction": 0.5415690450834221,
+          "per_file_blocks": {
+            "00000_00000_shuffled.ds": 53318,
+            "00001_00000_shuffled.ds": 37876,
+            "00002_00000_shuffled.ds": 37673,
+            "00003_00000_shuffled.ds": 37800,
+            "00004_00000_shuffled.ds": 38245,
+            "00005_00000_shuffled.ds": 39184
+          }
+        }
+      }
+    },
+    "tg15": {
+      "reasoning_fraction": 0.15,
+      "blocks": 488192,
+      "tokens": 999817216,
+      "sources": {
+        "tinygsm": {
+          "files": 17,
+          "blocks": 73229,
+          "tokens": 149972992,
+          "share": 0.150000409674882,
+          "pool_fraction": 0.05627999738693699,
+          "per_file_blocks": {
+            "00000_00000_shuffled.ds": 3982,
+            "00001_00000_shuffled.ds": 3981,
+            "00002_00000_shuffled.ds": 3982,
+            "00003_00000_shuffled.ds": 3978,
+            "00004_00000_shuffled.ds": 3752,
+            "00005_00000_shuffled.ds": 3725,
+            "00006_00000_shuffled.ds": 3726,
+            "00007_00000_shuffled.ds": 3727,
+            "00008_00000_shuffled.ds": 4485,
+            "00009_00000_shuffled.ds": 5076,
+            "00010_00000_shuffled.ds": 4474,
+            "00011_00000_shuffled.ds": 3720,
+            "00012_00000_shuffled.ds": 3720,
+            "00013_00000_shuffled.ds": 3722,
+            "00014_00000_shuffled.ds": 3900,
+            "00015_00000_shuffled.ds": 6640,
+            "00016_00000_shuffled.ds": 6639
+          }
+        },
+        "finemath3": {
+          "files": 4,
+          "blocks": 207482,
+          "tokens": 424923136,
+          "share": 0.425000819349764,
+          "pool_fraction": 0.3281489213639527,
+          "per_file_blocks": {
+            "00000_00000_shuffled.ds": 51116,
+            "00001_00000_shuffled.ds": 52832,
+            "00002_00000_shuffled.ds": 52148,
+            "00003_00000_shuffled.ds": 51386
+          }
+        },
+        "algebraic-stack": {
+          "files": 6,
+          "blocks": 207481,
+          "tokens": 424921088,
+          "share": 0.42499877097535393,
+          "pool_fraction": 0.46033235711750087,
+          "per_file_blocks": {
+            "00000_00000_shuffled.ds": 45320,
+            "00001_00000_shuffled.ds": 32194,
+            "00002_00000_shuffled.ds": 32022,
+            "00003_00000_shuffled.ds": 32130,
+            "00004_00000_shuffled.ds": 32509,
+            "00005_00000_shuffled.ds": 33306
+          }
+        }
+      }
+    },
+    "tg30": {
+      "reasoning_fraction": 0.3,
+      "blocks": 488192,
+      "tokens": 999817216,
+      "sources": {
+        "tinygsm": {
+          "files": 17,
+          "blocks": 146458,
+          "tokens": 299945984,
+          "share": 0.300000819349764,
+          "pool_fraction": 0.11255999477387398,
+          "per_file_blocks": {
+            "00000_00000_shuffled.ds": 7963,
+            "00001_00000_shuffled.ds": 7962,
+            "00002_00000_shuffled.ds": 7963,
+            "00003_00000_shuffled.ds": 7957,
+            "00004_00000_shuffled.ds": 7505,
+            "00005_00000_shuffled.ds": 7451,
+            "00006_00000_shuffled.ds": 7452,
+            "00007_00000_shuffled.ds": 7455,
+            "00008_00000_shuffled.ds": 8970,
+            "00009_00000_shuffled.ds": 10152,
+            "00010_00000_shuffled.ds": 8947,
+            "00011_00000_shuffled.ds": 7439,
+            "00012_00000_shuffled.ds": 7439,
+            "00013_00000_shuffled.ds": 7445,
+            "00014_00000_shuffled.ds": 7800,
+            "00015_00000_shuffled.ds": 13280,
+            "00016_00000_shuffled.ds": 13278
+          }
+        },
+        "finemath3": {
+          "files": 4,
+          "blocks": 170867,
+          "tokens": 349935616,
+          "share": 0.34999959032511796,
+          "pool_fraction": 0.2702394508761941,
+          "per_file_blocks": {
+            "00000_00000_shuffled.ds": 42095,
+            "00001_00000_shuffled.ds": 43509,
+            "00002_00000_shuffled.ds": 42945,
+            "00003_00000_shuffled.ds": 42318
+          }
+        },
+        "algebraic-stack": {
+          "files": 6,
+          "blocks": 170867,
+          "tokens": 349935616,
+          "share": 0.34999959032511796,
+          "pool_fraction": 0.37909788782392617,
+          "per_file_blocks": {
+            "00000_00000_shuffled.ds": 37322,
+            "00001_00000_shuffled.ds": 26513,
+            "00002_00000_shuffled.ds": 26371,
+            "00003_00000_shuffled.ds": 26460,
+            "00004_00000_shuffled.ds": 26772,
+            "00005_00000_shuffled.ds": 27429
+          }
+        }
+      }
+    }
+  }
+}

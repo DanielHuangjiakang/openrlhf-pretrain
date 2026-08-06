@@ -1,0 +1,47 @@
+[1m== full mixture build[0m
+[scan] blocks per source:
+  tinygsm             17 files     1,301,155 usable     2,664,765,440 tokens  (+2,000 held out)
+  finemath3            4 files       632,280 usable     1,294,909,440 tokens  (+2,000 held out)
+  algebraic-stack      6 files       450,720 usable       923,074,560 tokens  (+2,000 held out)
+[write] holdout: 2,000 blocks per source
+[write] tg00: 488,192 blocks
+[write] tg15: 488,192 blocks
+[write] tg30: 488,192 blocks
+
+==============================================================================
+ MIXTURE SELF-CHECK
+==============================================================================
+ seq_len=2048  dtype=uint16  bytes/block=4096  blocks/group=488,192  tokens/group=999,817,216
+ holdout: 2,000 blocks per source (excluded from every group)
+
+ group  source             files     blocks          tokens    share  pool used
+ ------ -----------------  ----- ---------- --------------- -------- ----------
+ tg00   tinygsm                0          0               0    0.00%      0.00x
+ tg00   finemath3              4    244,096     499,908,608   50.00%      0.39x
+ tg00   algebraic-stack        6    244,096     499,908,608   50.00%      0.54x
+ tg00   TOTAL                       488,192     999,817,216  100.00%
+
+ tg15   tinygsm               17     73,229     149,972,992   15.00%      0.06x
+ tg15   finemath3              4    207,482     424,923,136   42.50%      0.33x
+ tg15   algebraic-stack        6    207,481     424,921,088   42.50%      0.46x
+ tg15   TOTAL                       488,192     999,817,216  100.00%
+
+ tg30   tinygsm               17    146,458     299,945,984   30.00%      0.11x
+ tg30   finemath3              4    170,867     349,935,616   35.00%      0.27x
+ tg30   algebraic-stack        6    170,867     349,935,616   35.00%      0.38x
+ tg30   TOTAL                       488,192     999,817,216  100.00%
+
+ [align]  blocks per group: 488,192, 488,192, 488,192  -> IDENTICAL  OK
+ [share]  quantisation limit at 488,192 blocks: +/-0.0001%
+ [share]  tg00: tinygsm =   0.00%  (target 0.00%, off by 0.0000%)  -> OK
+ [share]  tg15: tinygsm =  15.00%  (target 15.00%, off by 0.0000%)  -> OK
+ [share]  tg30: tinygsm =  30.00%  (target 30.00%, off by 0.0001%)  -> OK
+ [holdout] 2,000 blocks/source reserved from file tails, no group reaches them  OK
+ [nested] tinygsm            tg00 <= tg15 <= tg30   17 file pairs sha256-matched  OK
+ [nested] finemath3          tg30 <= tg15 <= tg00   8 file pairs sha256-matched  OK
+ [nested] algebraic-stack    tg30 <= tg15 <= tg00   12 file pairs sha256-matched  OK
+
+ RESULT: ALL CHECKS PASSED
+==============================================================================
+
+manifest -> /root/openrlhf-pretrain/workspace/mixtures/manifest.json

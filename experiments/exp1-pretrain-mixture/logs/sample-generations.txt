@@ -1,0 +1,131 @@
+==============================================================================
+### tg30
+==============================================================================
+
+--- [code_bad] gold=18 ---
+Q: Janet’s ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the rem
+def simple_math_problem() -> int:
+    '''
+    At the farmers' market, Amy eats 3 eggs per day.
+    She eats three for breakfast every morning and bakes muffins for her friends every day with four.
+    She sells the remainder at the farmers' market daily for $2 per fresh duck egg.
+    How much in dollars does she make every day at the farmers' market?
+    '''
+    eggs_per_day = 3
+    eggs_per_day_with_breakfast = 3
+    eggs_per_day_with_breakfast_per_day = 4
+    price_per_egg_egg = 2
+    total_eggs = eggs_per_day * 7
+    total_eggs_with_breakfast = eggs_per_day_with_breakfast * 7
+    total_eggs
+
+--- [text] gold=160 ---
+Q: Carla is downloading a 200 GB file. Normally she can download 2 GB/minute, but 40% of the way through the download, Windows forces a restart to instal
+### How to Use a Cube to Convert a Cube to a Cube
+
+How to Use a Cube to Convert a Cube to a Cube
+
+### How to Use a Cube to Convert a Cube to a Cube
+
+How to Use a Cube to Convert a Cube to a Cube
+
+### How to Use a Cube to Convert a Cube to a Cube
+
+How to Use a Cube to Convert a Cube to a Cube
+
+### How to Use a Cube to Convert a Cube to a Cube
+
+How to Use a Cube to Convert a Cube to a Cube
+
+### How to Use a Cube to Convert a Cube to a Cube
+
+How to Use a Cube to Convert a Cube to a Cube
+
+### How to Use a Cube to Convert a Cube to a Cube
+
+How to Use a Cube to Convert a Cube to a Cube
+
+### How to U
+
+--- [code_ok] gold=243 ---
+Q: Mishka bought 3 pairs of shorts, 3 pairs of pants, and 3 pairs of shoes. One pair of shorts costs $16.50. One pair of pants costs $22.50 and one pair 
+def simple_math_problem() -> int:
+    '''
+    Mishka bought 3 pairs of shorts, 3 pairs of pants, and 3 pairs of shoes.
+    One pair of shorts costs $16.50.
+    One pair of pants costs $22.50 and one pair of shoes costs $42.
+    How many dollars did Mishka spend on all the clothing items?
+    '''
+    shorts_cost = 16.50
+    pants_cost = 22.50
+    shoes_cost = 42
+    total_cost = (shorts_cost * 3) + (pants_cost * 3) + (shoes_cost * 3)
+    result = total_cost
+    return result
+==============================================================================
+### authors_8xtg
+==============================================================================
+
+--- [code_bad] gold=18 ---
+Q: Janet’s ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the rem
+def simple_math_problem() -> int:
+    '''
+    Janet has 12 ducks and 8 chickens.
+    She feeds them with 2 eggs per day.
+    She feeds them with 1 egg per day.
+    She also buys 16 eggs per day from the market.
+    She eats three for breakfast every morning and bakes muffins for her friends every day with four.
+    She sells the remainder at the farmers' market daily for $2 per fresh duck egg.
+    How much in dollars does she make every day at the farmers' market?
+    '''
+    ducks = 12
+    chickens = 8
+    eggs_per_day = 2
+    eggs_per_day_bought = 16
+    eggs_per_day_eaten = 3
+    eggs_per_d
+
+--- [code_ok] gold=260 ---
+Q: Toulouse has twice as many sheep as Charleston. Charleston has 4 times as many sheep as Seattle. How many sheep do Toulouse, Charleston, and Seattle h
+def simple_math_problem() -> int:
+    '''
+    Toulouse has twice as many sheep as Charleston.
+    Charleston has 4 times as many sheep as Seattle.
+    How many sheep do Toulouse, Charleston, and Seattle have together if Seattle has 20 sheep?
+    '''
+    seattle_sheep = 20
+    charleston_sheep = seattle_sheep * 4
+    Toulouse_sheep = charleston_sheep * 2
+    total_sheep = seattle_sheep + charleston_sheep + Toulouse_sheep
+    result = total_sheep
+    return result
+
+--- [text] gold=125 ---
+Q: A merchant wants to make a choice of purchase between 2 purchase plans: jewelry worth $5,000 or electronic gadgets worth $8,000. His financial advisor
+A. $1,200 B.$1,500
+
+C. $1,800 D.$2,000
+
+E. $2,200 1. The profit is$1,200.
+
+2. The profit is $1,500. 3. The profit is$1,800.
+
+4. The profit is $2,000. 5. The profit is$2,200.
+
+### Explanation
+
+The profit is $1,200. The profit is$1,500. The profit is $2,000. The profit is$2,200.
+
+### Explanation
+
+The profit is $1,200. The profit is$1,500. The profit is $2,000. The profit is$2,200.
+
+### Explanation
+
+The profit is $1,200. The profit is$1,500. The profit is $2,000. The profit is$2,200.
+
+### Explanation
+
+The profit is $1,200. The profit is$1,500. The profit is $2,000. The profit is$2,200.
+
+### Expla
