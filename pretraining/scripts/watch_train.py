@@ -121,9 +121,12 @@ def render(path: Path) -> str:
         done = timed[-1][0] - timed[0][0]
         if span > 0 and done > 0:
             sec_per_step = span / done
-            eta = fmt_eta((total - cur) * sec_per_step)
-            finish = (datetime.now() + timedelta(seconds=(total - cur) * sec_per_step)).strftime("%H:%M")
-            eta = f"{eta}  (~{finish})"
+            remaining = (total - cur) * sec_per_step
+            # Stamp the timezone: this runs on the rented box, whose clock is
+            # usually UTC while you are reading it somewhere else, and an
+            # unlabelled "finishes at 15:29" is exactly how that goes wrong.
+            done_at = datetime.now().astimezone() + timedelta(seconds=remaining)
+            eta = f"{fmt_eta(remaining)} left  ->  {done_at:%H:%M %Z}"
 
     bar_w = 40
     filled = int(bar_w * cur / total) if total else 0
@@ -173,7 +176,7 @@ def main() -> int:
         return 0
     try:
         while True:
-            print("\033[2J\033[H" + datetime.now().strftime("%H:%M:%S") + "\n")
+            print("\033[2J\033[H" + f"{datetime.now().astimezone():%H:%M:%S %Z}" + "\n")
             print(render(args.log))
             time.sleep(args.watch)
     except KeyboardInterrupt:
