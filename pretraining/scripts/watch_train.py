@@ -134,11 +134,14 @@ def render(path: Path) -> str:
         f"  progress [{bar}] {cur:,}/{total:,}  {pct:5.1f}%",
         f"  eta      {eta or '?'}",
         "",
+        # Learning rate is deliberately absent: OLMo sends it to wandb but never
+        # to the console, so there is nothing to read here. Check the wandb run
+        # if the warmup schedule needs verifying.
         f"  loss     {m.get('train/CrossEntropyLoss', float('nan')):.4f}"
         f"      ppl {m.get('train/Perplexity', float('nan')):.1f}",
-        f"  grad     {m.get('optim/total_grad_norm', float('nan')):.4f}"
-        f"      lr  {m.get('optim/learning_rate_group0', float('nan')):.2e}",
+        f"  grad     {m.get('optim/total_grad_norm', float('nan')):.4f}",
         f"  speed    {m.get('throughput/device/tokens_per_second', float('nan')):,.0f} tok/s"
+        f"   {m.get('throughput/device/batches_per_second', float('nan')):.2f} step/s"
         f"   seen {m.get('throughput/total_tokens', float('nan')):,.0f} tokens",
         f"  gpu      {gpu_line()}",
     ]
