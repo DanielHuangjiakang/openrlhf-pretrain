@@ -28,13 +28,23 @@ ALIGN_TO=256    # = global_train_batch_size, so the run ends on a whole step
 HOLDOUT=2000    # blocks per source reserved for the held-out evaluators
 FRACTIONS="0,0.15,0.30"
 
-# Shard counts. Each FineMath shard is very roughly 0.2B tokens and each
-# Algebraic-Stack shard ~0.15B, so these leave ~2x headroom over the 0.5B per
-# source that a 1B-token budget needs. If build_mixture.py reports "Need N
-# blocks but the source only has M", raise the corresponding number.
-SHARDS_FINEMATH=8
-SHARDS_ALGEBRAIC=8
-SHARDS_TINYGSM=""   # empty = all of it; TinyGSM is only ~2B tokens
+# Shard counts. A 1B-token budget needs at most 0.5B tokens from each background
+# source (the 0% group) and 0.3B from TinyGSM (the 30% group); these leave ~2x
+# headroom. If build_mixture.py reports "Need N blocks but the source only has
+# M", raise the corresponding number and re-run.
+#
+# Sizing, measured from a 200-document sample of one shard:
+#   TinyGSM   17 shards x 697k rows x 196 tok/doc = ~137M tok/shard, ~2.3B total.
+#             Reliable: document lengths are tight (166 +/- 61 tokens).
+#   FineMath  128 shards x 167k rows. Per-document length is heavy-tailed (one
+#             doc in the sample was 1M characters, sd 73k vs mean 10k), so a
+#             200-doc mean overestimates badly. Falling back on the published
+#             ~34B total for finemath-3plus gives ~266M tok/shard.
+#   Algebraic 79 shards, 116 MB compressed each; at ~3-4x zstd and the measured
+#             2.94 chars/token that is ~118-157M tok/shard.
+SHARDS_FINEMATH=4    # >= 1.0B tokens even on the pessimistic estimate
+SHARDS_ALGEBRAIC=6   # >= 0.7B tokens
+SHARDS_TINYGSM=""    # empty = all 17 shards (~2.3B); it is small enough to take whole
 
 say() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 

@@ -238,15 +238,22 @@ def print_selfcheck(manifest: dict, verify_results: List[str]) -> bool:
         f"  -> {'IDENTICAL  OK' if aligned else 'MISMATCH  FAIL'}"
     )
 
+    # Shares are quantised by the block count: one block is 1/total_blocks of the
+    # mixture, so rounding can be off by at most half of that and no allocator
+    # can do better. The tolerance has to scale with the group size -- a fixed
+    # one spuriously fails small runs and is far too loose for large ones.
     reasoning = m["reasoning_source"]
+    tol = 0.5 / total_blocks + 1e-12
+    print(f" [share]  quantisation limit at {total_blocks:,} blocks: +/-{tol * 100:.4f}%")
     for gname, g in m["groups"].items():
         want = g["reasoning_fraction"]
         got = g["sources"][reasoning]["share"]
-        good = abs(got - want) < 1e-4
+        good = abs(got - want) <= tol
         ok &= good
         print(
             f" [share]  {gname}: {reasoning} = {got * 100:6.2f}%"
-            f"  (target {want * 100:.2f}%)  -> {'OK' if good else 'FAIL'}"
+            f"  (target {want * 100:.2f}%, off by {abs(got - want) * 100:.4f}%)"
+            f"  -> {'OK' if good else 'FAIL'}"
         )
 
     for line in verify_results:

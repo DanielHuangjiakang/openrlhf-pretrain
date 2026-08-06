@@ -42,7 +42,11 @@ FIXTURE = {
     "finemath3-tokenized": [2000, 1500, 1800, 900, 1200, 600],
     "algebraic-stack-tokenized": [1400, 1100, 900, 1000, 600],
 }
-TOTAL_BLOCKS = 2560  # = 10 * 256, so --align-to 256 leaves it untouched
+# 9 * 256, so --align-to 256 leaves it untouched. Deliberately NOT a multiple of
+# 20: 0.15 * 2304 = 345.6, so the shares have to be rounded. A total that
+# divides evenly would never exercise that path, which is exactly how a
+# too-tight share tolerance survived until real data hit it.
+TOTAL_BLOCKS = 2304
 FRACTIONS = [0.0, 0.15, 0.30]
 HOLDOUT_BLOCKS = 200
 
@@ -110,11 +114,12 @@ def test_end_to_end(tmp: Path) -> dict:
     assert len(set(counts.values())) == 1, f"block counts differ across groups: {counts}"
     assert set(counts.values()) == {TOTAL_BLOCKS}, counts
 
-    # 2. reasoning share
+    # 2. reasoning share, to within what integer block counts allow
+    tol = 0.5 / TOTAL_BLOCKS + 1e-12
     for gname, g in manifest["groups"].items():
         got = g["sources"]["tinygsm"]["share"]
         want = g["reasoning_fraction"]
-        assert abs(got - want) < 1e-4, f"{gname}: tinygsm share {got} != {want}"
+        assert abs(got - want) <= tol, f"{gname}: tinygsm share {got} vs {want} (tol {tol})"
 
     # 3. nesting, re-derived from disk rather than trusting the manifest
     for source in ("tinygsm", "finemath3", "algebraic-stack"):
