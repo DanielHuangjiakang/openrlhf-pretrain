@@ -59,12 +59,12 @@ say() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 
 # --------------------------------------------------------------------------
 step_env() {
-  say "0/5 host check"
+  say "0/6 host check"
   nvidia-smi --query-gpu=name,memory.total --format=csv || echo "!! no nvidia-smi"
   python3 --version
   df -h "$PWD" | tail -1
 
-  say "1/5 virtualenv + python deps"
+  say "1/6 virtualenv + python deps"
   # The pinned stack needs Python 3.10. vllm 0.8.1 requires xgrammar==0.1.16,
   # which publishes no cp312 wheel (PyPI jumps 0.1.13 -> 0.1.17 for 3.12), so on
   # Ubuntu 24.04's stock 3.12 the very first install fails. Bumping vllm instead
@@ -100,6 +100,29 @@ step_env() {
   # way to override a hard `==` pin, so use uv, which does.
   echo "xgrammar==0.1.17" > "$WORK/pip-overrides.txt"
   uv pip install --python "$PY" --override "$WORK/pip-overrides.txt" -q vllm==0.8.1
+
+  say "2/6 flash-attn"
+  # MUST come before requirements.txt, which also lists flash-attn: pip would
+  # otherwise try to build it from source, and flash-attn's setup.py imports
+  # torch, which build isolation hides from it. Installing the wheel first
+  # leaves the requirement already satisfied.
+  #
+  # The wheel filename encodes the interpreter, the torch minor version and the
+  # C++ ABI, all of which are read back from the environment rather than
+  # hardcoded -- both ABI variants are published and picking the wrong one
+  # yields undefined-symbol errors at import.
+  local py tv abi url
+  py="cp$("$PY" -c 'import sys; print(f"{sys.version_info.major}{sys.version_info.minor}")')"
+  tv="$("$PY" -c 'import torch; print(".".join(torch.__version__.split(".")[:2]))')"
+  abi="$("$PY" -c 'import torch; print("TRUE" if torch._C._GLIBCXX_USE_CXX11_ABI else "FALSE")')"
+  url="https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4.post1/flash_attn-2.7.4.post1+cu12torch${tv}cxx11abi${abi}-${py}-${py}-linux_x86_64.whl"
+  echo "trying $url"
+  "$PIP" install -q "$url" || {
+    echo "!! prebuilt wheel not found, compiling from source (this is slow)"
+    "$PIP" install -q flash-attn==2.7.4.post1 --no-build-isolation
+  }
+
+  say "3/6 remaining deps"
   "$PIP" install -q -r requirements.txt
   # datatrove is missing from requirements.txt even though data prep needs it.
   # huggingface_hub must stay below 1.0: transformers 4.50 caps it there, and an
@@ -108,20 +131,7 @@ step_env() {
   # 0.x the old name is still the right one.
   "$PIP" install -q datatrove "huggingface_hub<1.0"
 
-  say "2/5 flash-attn"
-  # Building from source takes 20-40 min even on 64 cores. Try the matching
-  # prebuilt wheel first and fall back to pip only if that 404s.
-  local py tv url
-  py="cp$("$PY" -c 'import sys; print(f"{sys.version_info.major}{sys.version_info.minor}")')"
-  tv="$("$PY" -c 'import torch; print(".".join(torch.__version__.split(".")[:2]))')"
-  url="https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4.post1/flash_attn-2.7.4.post1+cu12torch${tv}cxx11abiFALSE-${py}-${py}-linux_x86_64.whl"
-  echo "trying $url"
-  "$PIP" install -q "$url" || {
-    echo "!! prebuilt wheel not found, compiling from source (this is slow)"
-    "$PIP" install -q flash-attn==2.7.4.post1 --no-build-isolation
-  }
-
-  say "3/5 local packages"
+  say "4/6 local packages"
   "$PIP" install -q -e .
   # --no-deps keeps pip from re-resolving torch/omegaconf behind our back. These
   # are OLMo's actual runtime imports; boto3, google-api-core and rich are all
@@ -130,7 +140,7 @@ step_env() {
   "$PIP" install -q "numpy<2" omegaconf rich boto3 google-cloud-storage tokenizers \
                  cached_path transformers importlib_resources packaging
 
-  say "4/5 import check"
+  say "5/6 import check"
   "$PY" - <<'PY'
 import olmo, olmo.data, olmo.train           # the training path
 import openrlhf                              # the RL path
@@ -140,7 +150,7 @@ print("torch", torch.__version__, "cuda", torch.cuda.is_available(),
       "arch", torch.cuda.get_arch_list()[-3:] if torch.cuda.is_available() else "-")
 PY
 
-  say "5/5 huggingface login"
+  say "6/6 huggingface login"
   # The Llama-2 tokenizer repo is gated. Without access every tokenize run dies
   # on the first file, so fail here instead.
   "$PY" - "$TOKENIZER" <<'PY'
