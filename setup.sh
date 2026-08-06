@@ -146,7 +146,12 @@ step_env() {
   "$PIP" install -q datatrove "huggingface_hub<1.0"
 
   say "4/6 local packages"
-  "$PIP" install -q -e .
+  # --no-deps is required, not just tidy: setup.py builds install_requires by
+  # reading requirements.txt verbatim (_fetch_requirements), so a plain
+  # `pip install -e .` re-requests flash-attn, torch and vllm and walks straight
+  # back into the sdist build and the yanked-xgrammar pin. Every dependency has
+  # already been installed above.
+  "$PIP" install -q -e . --no-deps
   # --no-deps keeps pip from re-resolving torch/omegaconf behind our back. These
   # are OLMo's actual runtime imports; boto3, google-api-core and rich are all
   # top-level in olmo/util.py, so they are needed even for purely local runs.
