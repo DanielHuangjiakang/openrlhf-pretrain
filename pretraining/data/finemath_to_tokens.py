@@ -1,48 +1,48 @@
-from datatrove.executor.local import LocalPipelineExecutor
+"""Tokenize FineMath-3+ (background corpus).
+
+Upstream globbed every parquet shard in the repo (~34B tokens). A 1B-token run
+needs ~0.5B of FineMath, so `--shards` takes a seeded random subset instead.
+
+    python pretraining/data/finemath_to_tokens.py --dest /data --shards 8
+    python pretraining/data/finemath_to_tokens.py --dest /tmp/smoke --shards 1 --smoke 2000
+"""
+
+from pathlib import Path
+
 from datatrove.pipeline.readers import ParquetReader
-from datatrove.pipeline.tokens import DocumentTokenizer
-import os
-import argparse
+
+from _common import build_arg_parser, run_tokenization, select_shards
 
 DATASET_NAME = "finemath3"
-HF_PATH = "hf://datasets/HuggingFaceTB/finemath"
-TOKENIZER = "meta-llama/Llama-2-7b-hf"
-
-N_TASKS_PER_NODE = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
-NODES = int(os.environ.get("SLURM_ARRAY_TASK_COUNT", 1))
-RANK = int(os.environ.get("SLURM_ARRAY_TASK_ID", 0))
+HF_REPO = "HuggingFaceTB/finemath"
+HF_PATH = f"hf://datasets/{HF_REPO}"
+SUBDIR = "finemath-3plus"  # the quality-filtered subset the paper uses
 
 
-DESTINATION = "<PATH_TO_DATA>"
+def main() -> None:
+    args = build_arg_parser(__doc__).parse_args()
 
-print(f"Running with {N_TASKS_PER_NODE} tasks per node, {NODES} nodes, and rank {RANK}")
+    paths_file = select_shards(
+        HF_REPO,
+        out_path=Path(args.dest) / "shard_lists" / f"{DATASET_NAME}.txt",
+        subdir=SUBDIR,
+        suffix=".parquet",
+        n=args.shards,
+        seed=args.seed,
+    )
+
+    reader = ParquetReader(
+        data_folder=f"{HF_PATH}/{SUBDIR}",
+        paths_file=str(paths_file),
+        text_key="text",
+        id_key="id",
+        read_metadata=False,
+        limit=args.smoke or -1,
+    )
+
+    # Plain web text: nothing to assemble, the `text` column is the document.
+    run_tokenization(DATASET_NAME, [reader], args)
 
 
-reader = ParquetReader(
-    data_folder=f"{HF_PATH}/finemath-3plus",
-    glob_pattern="*.parquet",
-    text_key="text",
-    id_key="id",
-    read_metadata=False
-)
-
-dist_executor = LocalPipelineExecutor(
-    pipeline=[
-        reader,
-        DocumentTokenizer(
-            output_folder=f"{DESTINATION}/{DATASET_NAME}-tokenized",
-            tokenizer_name_or_path=TOKENIZER,
-            eos_token="</s>",
-            shuffle=True,
-            seed=0,
-        ),
-    ],
-    tasks=N_TASKS_PER_NODE * NODES,
-    workers=-1,
-    logging_dir=f"{DESTINATION}/logs/datatrove/{DATASET_NAME}",
-    # local flags
-    local_tasks=N_TASKS_PER_NODE,
-    local_rank_offset=RANK * N_TASKS_PER_NODE,
-    start_method="fork",
-)
-dist_executor.run()
+if __name__ == "__main__":
+    main()

@@ -1,24 +1,29 @@
-from datatrove.executor.local import LocalPipelineExecutor
+"""Tokenize Algebraic-Stack (background corpus).
+
+Algebraic-Stack is not a standalone dataset -- it is one subdirectory of
+EleutherAI/proof-pile-2 (the other two, open-web-math and arxiv, are unused
+here). Files are zstd-compressed jsonl.
+
+Upstream globbed the whole split (~10B tokens); a 1B-token run needs ~0.5B.
+
+    python pretraining/data/proofpile_to_tokens.py --dest /data --shards 6
+    python pretraining/data/proofpile_to_tokens.py --dest /tmp/smoke --shards 1 --smoke 2000
+"""
+
+from pathlib import Path
+
 from datatrove.pipeline.readers import JsonlReader
-from datatrove.pipeline.tokens import DocumentTokenizer
-import os
-import argparse
+
+from _common import build_arg_parser, run_tokenization, select_shards
+
+DATASET_NAME = "algebraic-stack"
+HF_REPO = "EleutherAI/proof-pile-2"
+HF_PATH = f"hf://datasets/{HF_REPO}"
+SUBDIR = f"{DATASET_NAME}/train"
 
 
-DATASET_NAME = 'algebraic-stack'
-HF_PATH = "hf://datasets/EleutherAI/proof-pile-2"
-TOKENIZER = "meta-llama/Llama-2-7b-hf"
-
-N_TASKS_PER_NODE = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
-NODES = int(os.environ.get("SLURM_ARRAY_TASK_COUNT", 1))
-RANK = int(os.environ.get("SLURM_ARRAY_TASK_ID", 0))
-
-DESTINATION = "<PATH_TO_DATA>"
-
-print(f"Running with {N_TASKS_PER_NODE} tasks per node, {NODES} nodes, and rank {RANK}")
-
-
-def default_adapter(self, data: dict, path: str, id_in_file: int | str):
+def default_adapter(self, data: dict, path: str, id_in_file):
+    """Drop proof-pile-2's per-document metadata; we only need the text."""
     return {
         "text": data.pop(self.text_key, ""),
         "id": data.pop(self.id_key, f"{path}/{id_in_file}"),
@@ -27,30 +32,30 @@ def default_adapter(self, data: dict, path: str, id_in_file: int | str):
     }
 
 
-dist_executor = LocalPipelineExecutor(
-    pipeline=[
-        JsonlReader(
-            HF_PATH,  # read directly from huggingface
-            glob_pattern=f"{DATASET_NAME}/train/*.jsonl.zst",
-            compression="zstd",
-            text_key="text",
-            id_key="id",
-            adapter=default_adapter,
-        ),
-        DocumentTokenizer(
-            output_folder=f"{DESTINATION}/{DATASET_NAME}-tokenized",
-            tokenizer_name_or_path=TOKENIZER,
-            eos_token="</s>",
-            shuffle=True,
-            seed=0,
-        ),
-    ],
-    tasks=N_TASKS_PER_NODE * NODES,
-    workers=-1,
-    logging_dir=f"{DESTINATION}/logs/datatrove/{DATASET_NAME}",
-    # local flags
-    local_tasks=N_TASKS_PER_NODE,
-    local_rank_offset=RANK * N_TASKS_PER_NODE,
-    start_method="fork",
-)
-dist_executor.run()
+def main() -> None:
+    args = build_arg_parser(__doc__).parse_args()
+
+    paths_file = select_shards(
+        HF_REPO,
+        out_path=Path(args.dest) / "shard_lists" / f"{DATASET_NAME}.txt",
+        subdir=SUBDIR,
+        suffix=".jsonl.zst",
+        n=args.shards,
+        seed=args.seed,
+    )
+
+    reader = JsonlReader(
+        f"{HF_PATH}/{SUBDIR}",
+        paths_file=str(paths_file),
+        compression="zstd",
+        text_key="text",
+        id_key="id",
+        adapter=default_adapter,
+        limit=args.smoke or -1,
+    )
+
+    run_tokenization(DATASET_NAME, [reader], args)
+
+
+if __name__ == "__main__":
+    main()
