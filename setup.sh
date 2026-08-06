@@ -53,6 +53,7 @@ SHARDS_TINYGSM=""    # empty = all 17 shards (~2.3B); it is small enough to take
 VENV="$WORK/venv"
 PY="$VENV/bin/python"
 PIP="$VENV/bin/pip"
+PYTHON_VERSION=3.10   # see step_env: vllm 0.8.1's xgrammar pin has no cp312 wheel
 
 say() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 
@@ -64,13 +65,32 @@ step_env() {
   df -h "$PWD" | tail -1
 
   say "1/5 virtualenv + python deps"
+  # The pinned stack needs Python 3.10. vllm 0.8.1 requires xgrammar==0.1.16,
+  # which publishes no cp312 wheel (PyPI jumps 0.1.13 -> 0.1.17 for 3.12), so on
+  # Ubuntu 24.04's stock 3.12 the very first install fails. Bumping vllm instead
+  # is not an option: OpenRLHF 0.6.3 hooks vLLM internals in
+  # trainer/ray/vllm_engine.py, and the README pins 0.8.1 for that reason.
+  #
+  # 24.04 ships no 3.10 package, so fetch a standalone one with uv rather than
+  # adding a PPA. --seed puts pip in the venv so the rest of this script is
+  # unchanged.
   if [[ ! -x "$PY" ]]; then
-    python3 -m venv "$VENV" 2>/dev/null || {
-      echo "venv module missing, installing"
-      apt-get update -qq && apt-get install -y -qq python3-venv
-      python3 -m venv "$VENV"
-    }
+    if python3 -c 'import sys; sys.exit(0 if sys.version_info[:2] == (3, 10) else 1)'; then
+      python3 -m venv "$VENV" 2>/dev/null || {
+        apt-get update -qq && apt-get install -y -qq python3-venv
+        python3 -m venv "$VENV"
+      }
+    else
+      echo "system python is $(python3 -V), fetching $PYTHON_VERSION via uv"
+      command -v uv >/dev/null || {
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        export PATH="$HOME/.local/bin:$PATH"
+      }
+      uv python install "$PYTHON_VERSION"
+      uv venv --seed --python "$PYTHON_VERSION" "$VENV"
+    fi
   fi
+  echo "venv python: $("$PY" -V)"
   "$PIP" install -q --upgrade pip setuptools wheel
 
   # vLLM first: it pins torch hard (0.8.1 -> torch 2.6.0), and letting anything
