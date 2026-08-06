@@ -22,7 +22,31 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PY="${PY:-python}"
 
 # --- knobs worth revisiting -------------------------------------------------
-EPISODES="${EPISODES:-3}"          # passes over GSM8K train (7473 prompts)
+# One pass over GSM8K train, not the paper's 10. The optimizer-step count is
+# what matters, and openrlhf derives it (ppo_actor.py:838) as
+#
+#   steps/episode = len(prompts) * n_samples / train_batch_size
+#                 = 7473 * 8 / 64 = 934
+#
+# against 1907 pretraining steps for a 1B-token run. One episode is already 49%
+# of pretraining; three would be 147%, i.e. more RL updates than pretraining
+# updates. The paper's ratio is ~17% (9340 RL steps against ~53600 pretraining
+# steps at 56B tokens), so three episodes here would be 8x more RL-heavy than
+# the setup being reproduced -- and "RL amplifies pretraining" is hard to argue
+# when RL does most of the updating.
+#
+# The learning rates cut the other way (1e-6 here against 1e-3 in pretraining,
+# so the RL phase carries 0.15% of pretraining's lr-weighted movement) and the
+# KL loss anchors the policy to the pretrained reference. So the step ratio
+# overstates the risk -- but the way to settle it is the `kl` curve in wandb,
+# not arithmetic. Watch it: small and stable means amplification, growing means
+# the pretrained behaviour is being overwritten.
+#
+# The paper also puts the effect inside the first epoch: "The model quickly
+# shifts toward generating answers in the format of one distribution -- TinyGSM
+# in this case -- within the first epoch." One episode should show it. Raise
+# this after seeing the KL curve, not before.
+EPISODES="${EPISODES:-1}"          # passes over GSM8K train (7473 prompts)
 KL_COEF="${KL_COEF:-1e-3}"         # middle of the paper's {0, 1e-3, 1e-2} sweep
 N_SAMPLES="${N_SAMPLES:-8}"        # generations per prompt; see the note below
 ROLLOUT_BS="${ROLLOUT_BS:-64}"     # prompts per rollout -> 116 rollout steps/episode
