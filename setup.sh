@@ -50,7 +50,12 @@ step_env() {
   # else choose torch first guarantees a re-resolve later.
   pip install -q vllm==0.8.1
   pip install -q -r requirements.txt
-  pip install -q datatrove huggingface_hub   # needed by the data scripts, absent from requirements.txt
+  # datatrove is missing from requirements.txt even though data prep needs it.
+  # huggingface_hub must stay below 1.0: transformers 4.50 caps it there, and an
+  # unpinned install silently pulls 1.x and breaks `from transformers import ...`.
+  # Note 1.x also renamed the CLI from `huggingface-cli` to `hf`; on the pinned
+  # 0.x the old name is still the right one.
+  pip install -q datatrove "huggingface_hub<1.0"
 
   say "2/5 flash-attn"
   # Building from source takes 20-40 min even on 64 cores. Try the matching
