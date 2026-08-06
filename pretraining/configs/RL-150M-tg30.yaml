@@ -10,10 +10,19 @@ run_name: OLMo-150M-tg30
 seed: 6198
 dry_run: false
 
-wandb:
-  name: ${run_name}
-  project: olmo-debug
-  entity: <YOUR WANDB ENTITY>
+# Off by default so a first run cannot die on a wandb misconfiguration six
+# hours in. OLMo still logs step, loss and throughput to stdout -- pipe it with
+# `2>&1 | tee run.log`. To turn wandb on, replace this line with:
+#
+#   wandb:
+#     name: ${run_name}
+#     project: echo-chamber
+#     entity: <your wandb username or team>
+#
+# Worth doing before the three-group comparison: the held-out loss curves are
+# the only signal comparable across groups, and they are painful to read off a
+# text log.
+wandb: null
 
 model:
   d_model: 768
