@@ -44,6 +44,7 @@ FIXTURE = {
 }
 TOTAL_BLOCKS = 2560  # = 10 * 256, so --align-to 256 leaves it untouched
 FRACTIONS = [0.0, 0.15, 0.30]
+HOLDOUT_BLOCKS = 200
 
 
 def build_fixture(root: Path) -> None:
@@ -96,6 +97,7 @@ def test_end_to_end(tmp: Path) -> dict:
         "--seq-len", str(SEQ_LEN),
         "--align-to", "256",
         "--fractions", ",".join(str(f) for f in FRACTIONS),
+        "--holdout-blocks", str(HOLDOUT_BLOCKS),
     ]
     print("\n$ " + " ".join(cmd[1:]) + "\n")
     result = subprocess.run(cmd, text=True)
@@ -132,10 +134,25 @@ def test_end_to_end(tmp: Path) -> dict:
         for s in g["sources"].values():
             assert not any("unshuffled" in f for f in s["per_file_blocks"])
 
+    # 5. held-out data exists and is disjoint from every group. The eval blocks
+    #    come off the tail of each source file, so no group's prefix can contain
+    #    them -- check that directly rather than trusting the arithmetic.
+    for source in ("tinygsm", "finemath3", "algebraic-stack"):
+        held = sorted((out_root / "holdout" / source).glob("*.ds"))
+        assert held, f"no holdout written for {source}"
+        assert sum(p.stat().st_size for p in held) == HOLDOUT_BLOCKS * BYTES_PER_BLOCK
+        for hp in held:
+            tail = hp.read_bytes()
+            for gname in manifest["groups"]:
+                gp = out_root / gname / source / hp.name
+                if gp.exists():
+                    assert tail not in gp.read_bytes(), f"{gname}/{source}/{hp.name} leaks eval data"
+
     print("\n[test] block counts identical ....... OK")
     print("[test] reasoning shares 0/15/30% .... OK")
     print("[test] nested subsets (byte-exact) .. OK")
     print("[test] unshuffled files excluded .... OK")
+    print("[test] holdout disjoint from groups . OK")
     return manifest
 
 

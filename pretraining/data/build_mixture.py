@@ -164,16 +164,21 @@ def plan_groups(
 # ==========================================================================
 
 
-def copy_prefix(src: Path, dst: Path, n_bytes: int, chunk: int = 8 << 20) -> None:
+def copy_range(src: Path, dst: Path, start: int, n_bytes: int, chunk: int = 8 << 20) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     remaining = n_bytes
     with open(src, "rb") as fin, open(dst, "wb") as fout:
+        fin.seek(start)
         while remaining > 0:
             buf = fin.read(min(chunk, remaining))
             if not buf:
-                raise IOError(f"{src}: expected {n_bytes} bytes, file ended early")
+                raise IOError(f"{src}: expected {n_bytes} bytes from offset {start}, file ended early")
             fout.write(buf)
             remaining -= len(buf)
+
+
+def copy_prefix(src: Path, dst: Path, n_bytes: int, chunk: int = 8 << 20) -> None:
+    copy_range(src, dst, 0, n_bytes, chunk)
 
 
 def sha256_prefix(path: Path, n_bytes: int, chunk: int = 8 << 20) -> str:
@@ -207,6 +212,8 @@ def print_selfcheck(manifest: dict, verify_results: List[str]) -> bool:
         f" seq_len={seq_len}  dtype={m['dtype']}  bytes/block={bpb}  "
         f"blocks/group={total_blocks:,}  tokens/group={total_blocks * seq_len:,}"
     )
+    if m["holdout_blocks_per_source"]:
+        print(f" holdout: {m['holdout_blocks_per_source']:,} blocks per source (excluded from every group)")
     print()
     print(f" {'group':<7}{'source':<18}{'files':>6}{'blocks':>11}{'tokens':>16}{'share':>9}{'pool used':>11}")
     print(f" {'-'*6:<7}{'-'*17:<18}{'-'*5:>6}{'-'*10:>11}{'-'*15:>16}{'-'*8:>9}{'-'*10:>11}")
@@ -311,6 +318,16 @@ def main() -> int:
         help="Reasoning-corpus share for each group.",
     )
     p.add_argument("--group-prefix", default="tg")
+    p.add_argument(
+        "--holdout-blocks",
+        type=int,
+        default=0,
+        help="Reserve this many blocks per source as a held-out eval set, taken from "
+        "the TAIL of every file and excluded from all groups. Point OLMo's "
+        "`evaluators:` at them -- train loss is not comparable across groups "
+        "(templated corpora score lower), so a fixed held-out set is the only "
+        "signal you can actually compare during training.",
+    )
     p.add_argument("--dry-run", action="store_true", help="Print the plan, write nothing.")
     p.add_argument(
         "--no-verify",
@@ -336,14 +353,31 @@ def main() -> int:
 
     # --- scan -------------------------------------------------------------
     source_dirs = {reasoning_name: reasoning_dir, **bg}
-    sources = {
+    full_sources = {
         name: scan_source(data_root / dirname, bytes_per_block)
         for name, dirname in source_dirs.items()
     }
-    print("[scan] available blocks per source:")
+
+    # Carve the held-out eval set off the TAIL of every file before anything
+    # else looks at the data. Groups only ever take prefixes, so reserving the
+    # tail makes it structurally impossible for a group to see an eval block.
+    holdout: Dict[str, List[int]] = {}
+    sources: Dict[str, List[Tuple[Path, int]]] = {}
+    for name, files in full_sources.items():
+        counts = [b for _, b in files]
+        h = allocate_prefix(counts, args.holdout_blocks) if args.holdout_blocks else [0] * len(counts)
+        holdout[name] = h
+        sources[name] = [(path, b - hi) for (path, b), hi in zip(files, h)]
+
+    print("[scan] blocks per source:")
     for name, files in sources.items():
         avail = sum(b for _, b in files)
-        print(f"  {name:<18} {len(files):>3} files  {avail:>12,} blocks  {avail * args.seq_len:>16,} tokens")
+        held = sum(holdout[name])
+        print(
+            f"  {name:<18} {len(files):>3} files  {avail:>12,} usable"
+            f"  {avail * args.seq_len:>16,} tokens"
+            + (f"  (+{held:,} held out)" if held else "")
+        )
 
     # --- plan -------------------------------------------------------------
     total_blocks = int(args.total_tokens // args.seq_len)
@@ -381,13 +415,16 @@ def main() -> int:
         "total_tokens_requested": args.total_tokens,
         "align_to": args.align_to,
         "total_blocks_per_group": total_blocks,
+        "holdout_blocks_per_source": args.holdout_blocks,
         "reasoning_source": reasoning_name,
         "background_weights": bg_weights,
         "sources": {
             name: {
                 "dir": str(data_root / source_dirs[name]),
                 "files": len(files),
-                "blocks": sum(b for _, b in files),
+                "blocks_total": sum(b for _, b in full_sources[name]),
+                "blocks_usable": sum(b for _, b in files),
+                "blocks_holdout": sum(holdout[name]),
             }
             for name, files in sources.items()
         },
@@ -420,6 +457,19 @@ def main() -> int:
         return 0
 
     # --- write ------------------------------------------------------------
+    if args.holdout_blocks:
+        for name, files in full_sources.items():
+            for (src, total_b), h in zip(files, holdout[name]):
+                if h == 0:
+                    continue
+                copy_range(
+                    src,
+                    out_root / "holdout" / name / src.name,
+                    (total_b - h) * bytes_per_block,
+                    h * bytes_per_block,
+                )
+        print(f"[write] holdout: {args.holdout_blocks:,} blocks per source")
+
     for gname in plan:
         for sname, files in sources.items():
             counts = alloc[gname][sname]
@@ -431,6 +481,16 @@ def main() -> int:
 
     # --- verify -----------------------------------------------------------
     verify_lines: List[str] = []
+    if args.holdout_blocks:
+        overlap = max(
+            max(alloc[g][name][i] for g in plan) + holdout[name][i] - total_b
+            for name, files in full_sources.items()
+            for i, (_, total_b) in enumerate(files)
+        )
+        verify_lines.append(
+            f"[holdout] {args.holdout_blocks:,} blocks/source reserved from file tails, "
+            f"no group reaches them  {'OK' if overlap <= 0 else 'FAIL'}"
+        )
     if args.no_verify:
         verify_lines.append("[nested] skipped (--no-verify)")
     else:
@@ -465,6 +525,9 @@ def main() -> int:
     print(f"\nmanifest -> {out_root / 'manifest.json'}")
     for gname in plan:
         print(f"  data.paths: ${{path.glob:{out_root / gname}/*/*.ds}}")
+    if args.holdout_blocks:
+        for name in sources:
+            print(f"  evaluator '{name}': ${{path.glob:{out_root / 'holdout' / name}/*.ds}}")
     return 0 if ok else 1
 
 
