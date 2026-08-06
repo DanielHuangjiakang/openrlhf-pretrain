@@ -233,9 +233,17 @@ step_smoke() {
   tokenize_all "$SMOKE_ROOT" 1 1 1 2000
 
   say "smoke: mixture over the real .ds files"
-  # 2M tokens is small enough to finish instantly but still exercises every
-  # code path: block counting, per-file allocation, holdout, sha256 nesting.
-  build_mix "$SMOKE_ROOT" "$SMOKE_ROOT/mixtures" 2e6 64
+  # Sized off TinyGSM, which is by far the smallest sample here: its documents
+  # average ~196 tokens against ~6900 for FineMath and ~2460 for Algebraic-
+  # Stack, so an equal document limit yields wildly unequal token counts. 2000
+  # TinyGSM docs is ~191 blocks, and the 30% group must fit inside that:
+  #
+  #   0.30 * total_blocks <= 191 - holdout   ->   total_blocks <= ~530
+  #
+  # 6e5 tokens is 292 blocks, which --align-to 256 rounds to 256; the 30% group
+  # then needs 77. Still exercises every code path -- block counting, per-file
+  # allocation, holdout, sha256 nesting -- and finishes instantly.
+  build_mix "$SMOKE_ROOT" "$SMOKE_ROOT/mixtures" 6e5 32
 
   cat <<EOF
 
