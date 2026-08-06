@@ -74,28 +74,32 @@ step_env() {
   # 24.04 ships no 3.10 package, so fetch a standalone one with uv rather than
   # adding a PPA. --seed puts pip in the venv so the rest of this script is
   # unchanged.
+  export PATH="$HOME/.local/bin:/.uv/python_bin:$PATH"
+  command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
+
   if [[ ! -x "$PY" ]]; then
-    if python3 -c 'import sys; sys.exit(0 if sys.version_info[:2] == (3, 10) else 1)'; then
-      python3 -m venv "$VENV" 2>/dev/null || {
-        apt-get update -qq && apt-get install -y -qq python3-venv
-        python3 -m venv "$VENV"
-      }
-    else
-      echo "system python is $(python3 -V), fetching $PYTHON_VERSION via uv"
-      command -v uv >/dev/null || {
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        export PATH="$HOME/.local/bin:$PATH"
-      }
-      uv python install "$PYTHON_VERSION"
-      uv venv --seed --python "$PYTHON_VERSION" "$VENV"
-    fi
+    uv python install "$PYTHON_VERSION"
+    uv venv --seed --python "$PYTHON_VERSION" "$VENV"
   fi
   echo "venv python: $("$PY" -V)"
   "$PIP" install -q --upgrade pip setuptools wheel
 
   # vLLM first: it pins torch hard (0.8.1 -> torch 2.6.0), and letting anything
   # else choose torch first guarantees a re-resolve later.
-  "$PIP" install -q vllm==0.8.1
+  #
+  # vllm 0.8.1 requires xgrammar==0.1.16, and 0.1.14 through 0.1.16 have since
+  # been yanked from PyPI, so plain pip cannot install it at all. The obvious
+  # fix -- moving to vllm 0.8.3, the earliest still-installable release --
+  # cascades: 0.8.3 wants transformers>=4.51.0 against this repo's pinned 4.50.0
+  # AND excludes ray 2.44.* against its pinned ray==2.44.0. That is three
+  # simultaneous departures from the stack the paper was run on.
+  #
+  # Overriding xgrammar by one patch release is far smaller. It is only used for
+  # guided/structured decoding, which nothing here touches: RL scores with
+  # openrlhf/utils/math_verifier.py and evaluation samples freely. pip has no
+  # way to override a hard `==` pin, so use uv, which does.
+  echo "xgrammar==0.1.17" > "$WORK/pip-overrides.txt"
+  uv pip install --python "$PY" --override "$WORK/pip-overrides.txt" -q vllm==0.8.1
   "$PIP" install -q -r requirements.txt
   # datatrove is missing from requirements.txt even though data prep needs it.
   # huggingface_hub must stay below 1.0: transformers 4.50 caps it there, and an
