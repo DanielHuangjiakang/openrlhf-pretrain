@@ -138,12 +138,17 @@ step_env() {
   #               again, which is the failure this whole dance avoids.
   grep -vE '^(flash-attn|torch|vllm)([=<>!~[:space:]]|$)' requirements.txt > "$WORK/requirements-filtered.txt"
   "$PIP" install -q -r "$WORK/requirements-filtered.txt"
-  # datatrove is missing from requirements.txt even though data prep needs it.
+  # datatrove is missing from requirements.txt even though data prep needs it,
+  # and it has to be resolved together with the numpy cap: datatrove 0.9
+  # requires numpy>=2.0, while vllm 0.8.1 and OLMo both require <2. Constraining
+  # numpy in the same command makes pip pick the newest datatrove that fits
+  # instead of installing 0.9 and leaving it broken by the later downgrade.
+  #
   # huggingface_hub must stay below 1.0: transformers 4.50 caps it there, and an
   # unpinned install silently pulls 1.x and breaks `from transformers import ...`.
   # Note 1.x also renamed the CLI from `huggingface-cli` to `hf`; on the pinned
   # 0.x the old name is still the right one.
-  "$PIP" install -q datatrove "huggingface_hub<1.0"
+  "$PIP" install -q datatrove "numpy<2" "huggingface_hub<1.0"
 
   say "4/6 local packages"
   # --no-deps is required, not just tidy: setup.py builds install_requires by
@@ -156,8 +161,14 @@ step_env() {
   # are OLMo's actual runtime imports; boto3, google-api-core and rich are all
   # top-level in olmo/util.py, so they are needed even for purely local runs.
   "$PIP" install -q -e OLMo/ --no-deps
+  # Derived by walking every top-level import in OLMo's training path rather
+  # than by trial and error. scikit-learn is the non-obvious one: olmo/train.py
+  # imports Evaluator, which pulls eval/downstream.py, which does
+  # `from sklearn.metrics import f1_score` at module scope -- so it is needed
+  # even though nothing here runs a downstream eval. olmo_core is imported only
+  # inside functions on the sharded-checkpoint path, so it stays out.
   "$PIP" install -q "numpy<2" omegaconf rich boto3 google-cloud-storage tokenizers \
-                 cached_path transformers importlib_resources packaging
+                 cached_path transformers importlib_resources packaging scikit-learn
 
   say "5/6 import check"
   "$PY" - <<'PY'
