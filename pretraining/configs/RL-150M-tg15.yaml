@@ -10,19 +10,25 @@ run_name: OLMo-150M-tg15
 seed: 6198
 dry_run: false
 
-# Off by default so a first run cannot die on a wandb misconfiguration six
-# hours in. OLMo still logs step, loss and throughput to stdout -- pipe it with
-# `2>&1 | tee run.log`. To turn wandb on, replace this line with:
+# entity MUST be set explicitly -- OLMo's WandbConfig defaults it to "ai2-llm",
+# which is AI2's own workspace and not writable, so leaving it out makes
+# wandb.init fail. null falls back to whatever account `wandb login` recorded,
+# which keeps credentials out of the repo entirely.
 #
-#   wandb:
-#     name: ${run_name}
-#     project: echo-chamber
-#     entity: <your wandb username or team>
+# `group` puts the three runs on shared axes in the UI, which is the whole point
+# here: train loss is NOT comparable across groups (TinyGSM is templated and
+# scores lower regardless of model quality), so the held-out curves are the only
+# signal you can read side by side.
 #
-# Worth doing before the three-group comparison: the held-out loss curves are
-# the only signal comparable across groups, and they are painful to read off a
-# text log.
-wandb: null
+# Run `wandb login` on the machine once before training. To go back to
+# stdout-only, set this whole block to `wandb: null`.
+wandb:
+  name: ${run_name}
+  project: echo-chamber
+  entity: null
+  group: 150m-1B-tokens
+  tags: [echo-chamber, 150m, 1B-tokens]
+  log_interval: 1
 
 model:
   d_model: 768
