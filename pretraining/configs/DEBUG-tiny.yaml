@@ -1,0 +1,127 @@
+# Smoke test: a ~5M-parameter model for 50 steps, roughly 5 minutes on one GPU.
+#
+# This is not a research config. Its only job is to exercise the whole chain --
+# tokenized .ds -> MemMapDataset -> DDP training -> evaluator -> checkpoint ->
+# HF conversion -> vLLM load -> run_inference_all.py -- before an hours-long run
+# discovers a problem in step 7. Everything that can be small is small.
+#
+#   torchrun --nproc_per_node=1 OLMo/scripts/train.py pretraining/configs/DEBUG-tiny.yaml
+#
+# Note the .ds format is sequence-length agnostic: it is a flat token array that
+# OLMo chunks at read time, so this config can point at a mixture built with any
+# --seq-len. The block count changes, the bytes do not.
+
+run_name: DEBUG-tiny
+seed: 6198
+dry_run: false
+
+wandb: null # keep smoke runs out of the real project
+
+model:
+  d_model: 256
+  n_heads: 4 # head_dim = 64, which is what flash-attn is fastest at
+  n_layers: 4
+  mlp_ratio: 8
+  weight_tying: false
+  alibi: false
+  rope: true
+  flash_attention: true
+  attention_dropout: 0.0
+  attention_layer_norm: false
+  clip_qkv: null
+  include_bias: false
+  block_type: sequential
+  layer_norm_type: default
+  layer_norm_with_affine: false
+  bias_for_layer_norm: false
+  attention_layer_norm_with_affine: false
+  activation_type: swiglu
+  residual_dropout: 0.0
+  embedding_dropout: 0.0
+  max_sequence_length: 512
+  vocab_size: 32000 # must stay 32000: it is the Llama-2 tokenizer's vocab
+  embedding_size: 32000
+  eos_token_id: 0
+  pad_token_id: 1
+  init_device: cuda
+  init_fn: normal
+  init_std: 0.02
+  init_cutoff_factor: 3
+
+ddp:
+  grad_sync_mode: batch
+  find_unused_params: false
+
+compile: null
+
+optimizer:
+  name: adamw
+  learning_rate: 0.001
+  weight_decay: 0.1
+  eps: 1e-8
+  decay_norm_and_bias: true
+  decay_embeddings: true
+  metrics_log_interval: 10
+
+scheduler:
+  name: cosine_with_warmup
+  t_warmup: 5
+  alpha_f: 0.1
+  warmup_min_lr: 0
+
+tokenizer:
+  identifier: meta-llama/Llama-2-7b-hf
+  truncate_direction: right
+
+save_folder: <PATH_TO_CHECKPOINT>/${run_name}
+save_overwrite: true # smoke runs get re-run constantly
+
+save_interval_unsharded: 50 # produces the checkpoint convert_to_hf.sh needs
+save_num_unsharded_checkpoints_to_keep: 1
+save_interval: 25
+save_num_checkpoints_to_keep: 1
+
+load_path: null
+
+# A plain integer duration means "this many steps" (OLMo/olmo/train.py:263-264),
+# which is the quickest way to bound a smoke run regardless of dataset size.
+max_duration: 50
+stop_at: 50
+
+global_train_batch_size: 8
+device_train_microbatch_size: 2
+
+precision: amp_bf16
+distributed_strategy: ddp
+
+gen1_gc_interval: 1
+
+max_grad_norm: 1.0
+max_grad_norm_ratio: null
+
+speed_monitor:
+  window_size: 20
+
+# Fires twice in a 50-step run, which is enough to prove the evaluator path
+# works. A broken `evaluators:` block aborts training, so it is worth catching
+# here rather than 90 minutes into a real run.
+eval_interval: 25
+eval_subset_num_batches: 2
+device_eval_batch_size: ${device_train_microbatch_size}
+
+data:
+  pad_direction: right
+  num_workers: 2
+  drop_last: true
+  pin_memory: true
+  prefetch_factor: 2
+  persistent_workers: true
+  timeout: 0
+  paths: ${path.glob:<PATH_TO_SMOKE_MIXTURES>/tg30/*/*.ds}
+
+evaluators:
+  - label: heldout-tinygsm
+    type: lm
+    data:
+      paths: ${path.glob:<PATH_TO_SMOKE_MIXTURES>/holdout/tinygsm/*.ds}
+    subset_num_batches: 2

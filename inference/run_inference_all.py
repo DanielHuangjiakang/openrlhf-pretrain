@@ -121,6 +121,14 @@ if __name__ == "__main__":
             # Pass Criterion Evaluation
             one_correct = False
             # For majority calculation
+            # NOTE: maj_acc must be initialised here. It is otherwise only
+            # assigned inside `for max_elem, _ in max_elems_with_counts:` below,
+            # and that loop does not run when none of the k generations parse
+            # into an answer (most_common() returns an empty list). The first
+            # such problem then raises UnboundLocalError, and every later one
+            # silently reuses the previous problem's score. Weak models produce
+            # unparseable output constantly, so this fires in practice.
+            maj_acc = 0.0
             parsed_predictions = []
             parsed_predictions_str = []
             max_elem, max_count = None, 0
