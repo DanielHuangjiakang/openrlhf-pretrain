@@ -123,7 +123,17 @@ step_env() {
   }
 
   say "3/6 remaining deps"
-  "$PIP" install -q -r requirements.txt
+  # Two lines are dropped from requirements.txt before installing:
+  #
+  #   flash-attn  already installed above from a prebuilt wheel. Leaving it here
+  #               makes pip's resolver consider the sdist, whose setup.py
+  #               imports torch under build isolation and always fails.
+  #   torch       unpinned upstream, which fights vllm's hard torch==2.6.0. The
+  #               resolver backtracks over that conflict, and backtracking is
+  #               what drags the flash-attn sdist in. vllm has already installed
+  #               2.6.0, so simply leave the version alone.
+  grep -vE '^(flash-attn|torch)([=<>!~[:space:]]|$)' requirements.txt > "$WORK/requirements-filtered.txt"
+  "$PIP" install -q -r "$WORK/requirements-filtered.txt"
   # datatrove is missing from requirements.txt even though data prep needs it.
   # huggingface_hub must stay below 1.0: transformers 4.50 caps it there, and an
   # unpinned install silently pulls 1.x and breaks `from transformers import ...`.
