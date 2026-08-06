@@ -47,6 +47,10 @@ def compute_approx_kl(
 
     return log_ratio
 
+# Set once by compute_reward when a KL segment is shorter than its action count.
+_REWARD_LEN_MISMATCH_WARNED = False
+
+
 def compute_reward(
     r: Union[torch.Tensor, float],
     kl_coef: float,
@@ -81,7 +85,30 @@ def compute_reward(
         reward = []
         for i, (kl_seg, action_len) in enumerate(zip(kl, num_actions)):
             kl_reward = -kl_coef * kl_seg
-            kl_reward[action_len - 1] += r[i]
+            # This branch assumes len(kl_seg) == action_len, and that does not
+            # always hold: a very short generation can arrive with num_actions
+            # one larger than the KL segment, and the raw index then raises
+            # IndexError and kills the run. Seen with a 13-token KL segment
+            # against action_len 14 during greedy evaluation, where degenerate
+            # short outputs are common.
+            #
+            # Clamping puts the terminal reward on the last real position
+            # instead. For a one-token discrepancy that is a negligible change
+            # to the reward signal, and far better than losing a run in
+            # progress. If this fires often the mismatch is worth chasing
+            # upstream, so it warns once per process rather than silently.
+            idx = action_len - 1
+            if idx >= kl_reward.numel():
+                global _REWARD_LEN_MISMATCH_WARNED
+                if not _REWARD_LEN_MISMATCH_WARNED:
+                    _REWARD_LEN_MISMATCH_WARNED = True
+                    print(
+                        f"[compute_reward] num_actions ({action_len}) exceeds the KL segment "
+                        f"({kl_reward.numel()}); clamping the terminal reward to the last "
+                        f"position. Warned once per process."
+                    )
+                idx = kl_reward.numel() - 1
+            kl_reward[idx] += r[i]
             reward.append(kl_reward)
 
     return reward

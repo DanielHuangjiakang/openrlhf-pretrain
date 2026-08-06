@@ -93,6 +93,14 @@ exec "$PY" -m openrlhf.cli.train_ppo_ray \
     --actor_num_nodes 1 --actor_num_gpus_per_node 1 \
     --ref_num_nodes 1 --ref_num_gpus_per_node 1 \
     \
+    `# openrlhf's built-in eval runs once before training and again per epoch,` \
+    `# on a held-out slice of the prompt data, with temperature forced to 0` \
+    `# (ppo_actor.py:634). Greedy decoding from these models produces very short` \
+    `# degenerate outputs, which is what triggered the compute_reward index` \
+    `# mismatch that killed the first attempt. Nothing is lost by skipping it:` \
+    `# every number reported here comes from inference/run_inference_all.py,` \
+    `# which is the paper's own evaluator and covers GSM8K test properly.` \
+    --eval_steps 0 \
     --num_episodes "$EPISODES" --max_epochs 1 --max_samples 5000000 \
     --rollout_batch_size "$ROLLOUT_BS" --n_samples_per_prompt "$N_SAMPLES" \
     --train_batch_size 64 --micro_train_batch_size 8 --micro_rollout_batch_size 16 \
