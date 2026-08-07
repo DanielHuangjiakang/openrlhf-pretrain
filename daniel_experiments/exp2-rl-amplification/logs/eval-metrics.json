@@ -1,0 +1,212 @@
+{
+  "tg00": {
+    "base/pass1": {
+      "text_count": 1.0,
+      "text_acc": 0.006823351023502654,
+      "final_accuracy": 0.006823351023502654
+    },
+    "rl_step1/pass1": {
+      "text_count": 1.0,
+      "text_acc": 0.006065200909780136,
+      "final_accuracy": 0.006065200909780136
+    },
+    "rl_step20/pass1": {
+      "text_count": 1.0,
+      "text_acc": 0.004548900682335102,
+      "final_accuracy": 0.004548900682335102
+    },
+    "rl_step58/pass1": {
+      "text_count": 1.0,
+      "text_acc": 0.0075815011372251705,
+      "final_accuracy": 0.0075815011372251705
+    },
+    "rl_step116/pass1": {
+      "text_count": 1.0,
+      "text_acc": 0.006823351023502654,
+      "final_accuracy": 0.006823351023502654
+    }
+  },
+  "tg15": {
+    "base/pass1": {
+      "tinygsm-code_count": 0.8931008339651251,
+      "tinygsm-code_acc": 0.0432937181663837,
+      "text_count": 0.1068991660348749,
+      "text_acc": 0.0,
+      "final_accuracy": 0.03866565579984837
+    },
+    "base/pass64": {
+      "tinygsm-code_count": 0.8376729529946929,
+      "tinygsm-code_acc": 0.03034802652977529,
+      "text_count": 0.12667029946929492,
+      "text_acc": 0.014121387823809969,
+      "final_accuracy": 0.45489006823351025,
+      "final_maj_accuracy": 0.0576194086429113
+    },
+    "rl_step1/pass1": {
+      "tinygsm-code_count": 0.8953752843062927,
+      "tinygsm-code_acc": 0.04233700254022015,
+      "text_count": 0.10462471569370735,
+      "text_acc": 0.007246376811594203,
+      "final_accuracy": 0.03866565579984837
+    },
+    "rl_step5/pass1": {
+      "tinygsm-code_count": 0.8946171341925702,
+      "tinygsm-code_acc": 0.04576271186440678,
+      "text_count": 0.10538286580742987,
+      "text_acc": 0.007194244604316547,
+      "final_accuracy": 0.04169825625473844
+    },
+    "rl_step14/pass1": {
+      "tinygsm-code_count": 0.8968915845337376,
+      "tinygsm-code_acc": 0.04311073541842773,
+      "text_count": 0.10310841546626232,
+      "text_acc": 0.007352941176470588,
+      "final_accuracy": 0.039423805913570885
+    },
+    "rl_step29/pass1": {
+      "tinygsm-code_count": 0.8984078847611827,
+      "tinygsm-code_acc": 0.0540084388185654,
+      "text_count": 0.10159211523881728,
+      "text_acc": 0.007462686567164179,
+      "final_accuracy": 0.04927975739196361
+    },
+    "rl_step58/pass1": {
+      "tinygsm-code_count": 0.9082638362395754,
+      "tinygsm-code_acc": 0.07178631051752922,
+      "text_count": 0.09173616376042457,
+      "text_acc": 0.008264462809917356,
+      "final_accuracy": 0.06595905989385899
+    },
+    "rl_step116/pass1": {
+      "tinygsm-code_count": 0.9150871872630781,
+      "tinygsm-code_acc": 0.07787903893951947,
+      "text_count": 0.08491281273692192,
+      "text_acc": 0.0,
+      "final_accuracy": 0.0712661106899166
+    }
+  },
+  "tg30": {
+    "base/pass1": {
+      "tinygsm-code_count": 0.9711902956785443,
+      "tinygsm-code_acc": 0.0663544106167057,
+      "text_count": 0.02880970432145565,
+      "text_acc": 0.0,
+      "final_accuracy": 0.06444275966641395
+    },
+    "base/pass64": {
+      "tinygsm-code_count": 0.9462661106899166,
+      "tinygsm-code_acc": 0.04206309464196294,
+      "text_count": 0.03884334723275208,
+      "text_acc": 0.014943580359865812,
+      "final_accuracy": 0.5056861258529188,
+      "final_maj_accuracy": 0.06747536012130402
+    },
+    "rl_step1/pass1": {
+      "tinygsm-code_count": 0.9734647460197119,
+      "tinygsm-code_acc": 0.061526479750778816,
+      "text_count": 0.026535253980288095,
+      "text_acc": 0.0,
+      "final_accuracy": 0.05989385898407885
+    },
+    "rl_step2/pass1": {
+      "tinygsm-code_count": 0.9719484457922669,
+      "tinygsm-code_acc": 0.062402496099843996,
+      "text_count": 0.028051554207733132,
+      "text_acc": 0.0,
+      "final_accuracy": 0.060652009097801364
+    },
+    "rl_step3/pass1": {
+      "tinygsm-code_count": 0.9719484457922669,
+      "tinygsm-code_acc": 0.062402496099843996,
+      "text_count": 0.028051554207733132,
+      "text_acc": 0.0,
+      "final_accuracy": 0.060652009097801364
+    },
+    "rl_step5/pass1": {
+      "tinygsm-code_count": 0.9727065959059894,
+      "tinygsm-code_acc": 0.06157443491816056,
+      "text_count": 0.027293404094010616,
+      "text_acc": 0.0,
+      "final_accuracy": 0.05989385898407885
+    },
+    "rl_step7/pass1": {
+      "tinygsm-code_count": 0.9719484457922669,
+      "tinygsm-code_acc": 0.06396255850234009,
+      "text_count": 0.028051554207733132,
+      "text_acc": 0.0,
+      "final_accuracy": 0.0621683093252464
+    },
+    "rl_step10/pass1": {
+      "tinygsm-code_count": 0.9727065959059894,
+      "tinygsm-code_acc": 0.06547155105222136,
+      "text_count": 0.027293404094010616,
+      "text_acc": 0.0,
+      "final_accuracy": 0.06368460955269144
+    },
+    "rl_step14/pass1": {
+      "tinygsm-code_count": 0.9727065959059894,
+      "tinygsm-code_acc": 0.06936866718628215,
+      "text_count": 0.027293404094010616,
+      "text_acc": 0.0,
+      "final_accuracy": 0.06747536012130402
+    },
+    "rl_step20/pass1": {
+      "tinygsm-code_count": 0.9734647460197119,
+      "tinygsm-code_acc": 0.06931464174454828,
+      "text_count": 0.026535253980288095,
+      "text_acc": 0.0,
+      "final_accuracy": 0.06747536012130402
+    },
+    "rl_step29/pass1": {
+      "tinygsm-code_count": 0.9757391963608795,
+      "tinygsm-code_acc": 0.0777000777000777,
+      "text_count": 0.024260803639120546,
+      "text_acc": 0.0,
+      "final_accuracy": 0.0758150113722517
+    },
+    "rl_step41/pass1": {
+      "tinygsm-code_count": 0.9772554965883244,
+      "tinygsm-code_acc": 0.08844065166795965,
+      "text_count": 0.022744503411675512,
+      "text_acc": 0.0,
+      "final_accuracy": 0.08642911296436695
+    },
+    "rl_step58/pass1": {
+      "tinygsm-code_count": 0.9810462471569371,
+      "tinygsm-code_acc": 0.09969088098918083,
+      "text_count": 0.018953752843062926,
+      "text_acc": 0.0,
+      "final_accuracy": 0.0978013646702047
+    },
+    "rl_step58/pass64": {
+      "tinygsm-code_count": 0.955482373009856,
+      "tinygsm-code_acc": 0.07990527907957053,
+      "text_count": 0.028549090219863533,
+      "text_acc": 0.012863070539419087,
+      "final_accuracy": 0.5943896891584534,
+      "final_maj_accuracy": 0.13874147081122062
+    },
+    "rl_step82/pass1": {
+      "tinygsm-code_count": 0.9810462471569371,
+      "tinygsm-code_acc": 0.09659969088098919,
+      "text_count": 0.018953752843062926,
+      "text_acc": 0.0,
+      "final_accuracy": 0.09476876421531463
+    },
+    "rl_step116/pass1": {
+      "tinygsm-code_count": 0.9818043972706596,
+      "tinygsm-code_acc": 0.09575289575289575,
+      "text_count": 0.01819560272934041,
+      "text_acc": 0.0,
+      "final_accuracy": 0.09401061410159212
+    },
+    "rl_step116/pass64": {
+      "tinygsm-code_count": 0.959758813495072,
+      "tinygsm-code_acc": 0.0900652933262568,
+      "text_count": 0.026085102350265354,
+      "text_acc": 0.01407811080835604,
+      "final_accuracy": 0.5815011372251706,
+      "final_maj_accuracy": 0.13949962092494314
+    }
+  }
+}

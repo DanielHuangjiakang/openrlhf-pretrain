@@ -2,33 +2,39 @@
 
 GRPO on all three pretrained models from [exp1](../exp1-pretrain-mixture/), one
 episode each (116 rollout steps, 934 optimizer steps), identical configuration.
-`tg15` still finishing at time of writing; its cells are marked _pending_.
+All three complete.
 
 All evaluation is GSM8K **test** (1,319 problems). RL trains on GSM8K **train**
 (7,473), so there is no overlap.
 
 ---
 
-## The dose-response is clean
+## Overview
 
-Everything RL does scales with how much TinyGSM the model saw in pretraining.
+Every quantity below moves in the same direction with the pretraining
+TinyGSM share — but, as the KL row shows, not all of them scale with it.
 
 | | `tg00` (0%) | `tg15` (15%) | `tg30` (30%) |
 |---|---|---|---|
-| **reward, start → end** | 0.022 → **0.014** | 0.023 → _pending_ | 0.037 → **0.152** |
-| **KL, end** | **0.000328** | **0.00835** | **0.0145** |
+| **reward, start → end** | 0.022 → **0.014** | 0.023 → **0.096** | 0.037 → **0.152** |
+| **KL, end** | **0.000328** | **0.0150** | **0.0145** |
 | response_length, end | **895** | 239 | 216 |
-| pass@1, before → after | 0.68% → **0.68%** | 3.87% → _pending_ | 6.44% → **9.40%** |
-| `tinygsm-code_count`, before → after | 0.00% → **0.00%** | 89.31% → _pending_ | 97.12% → **98.18%** |
+| pass@1, before → after | 0.68% → **0.68%** | 3.87% → **7.13%** (+84%) | 6.44% → **9.40%** (+46%) |
+| `tinygsm-code_count`, before → after | 0.00% → **0.00%** | 89.31% → **91.51%** | 97.12% → **98.18%** |
+| `text_count`, before → after | 100% → **100%** | 10.69% → **8.49%** (−21%) | 2.88% → **1.82%** (−37%) |
 
-**KL rises monotonically with the pretraining TinyGSM share: 0.0003 → 0.0084 →
-0.0145, a 44x spread.** Nothing constrained tg00 to stay close to its reference
-— the KL coefficient was identical for all three. Its policy barely moved
-because **the gradient signal was near zero and there was nowhere to go**.
+**KL separates tg00 from the other two by a factor of ~45, but tg15 and tg30
+land on top of each other** (0.0150 vs 0.0145) despite a 60% difference in final
+reward. Nothing constrained tg00 to stay near its reference — the KL coefficient
+was identical for all three runs. Its policy barely moved because **the gradient
+signal was near zero and there was nowhere to go**.
 
-That is the cleanest quantitative statement of the paper's thesis available
-here: *the amount RL moves the policy is proportional to how much of the target
-behaviour pretraining had already installed.*
+So the relationship is not "policy movement scales with mixture share". It is
+closer to a threshold: *once pretraining has installed enough of the target
+behaviour for the reward to be learnable at all — and 15% is already enough —
+RL moves the policy about as far regardless of how much more there is.* What
+keeps scaling with the mixture is the reward the policy reaches, not the
+distance it travels to get there.
 
 ---
 
@@ -70,6 +76,35 @@ More episodes do not fix either. **This is a result, not a failed run:** RL
 amplifies what pretraining installed, and when pretraining installed nothing
 usable, there is nothing to amplify. The paper has no 0% condition, so this
 direction of the claim is untested there.
+
+---
+
+## tg15: the same two effects, from a lower base
+
+| RL step | pass@1 | `code_count` | `text_count` |
+|---|---|---|---|
+| **before** | **3.87%** | **89.31%** | 10.69% |
+| 1 | 3.87% | 89.54% | 10.46% |
+| 5 | 4.17% | 89.46% | 10.54% |
+| 14 | 3.94% | 89.69% | 10.31% |
+| 29 | 4.93% | 89.84% | 10.16% |
+| 58 | 6.60% | 90.83% | 9.17% |
+| **116** | **7.13%** | **91.51%** | **8.49%** |
+
+Both effects reproduce: `code_count` climbs monotonically, `text_count` falls
+10.69% → 8.49%, pass@1 rises 3.87% → 7.13%.
+
+**tg15's relative pass@1 gain (+84%) is larger than tg30's (+46%)**, though its
+absolute endpoint is lower (7.13% vs 9.40%). This is worth stating carefully
+against the paper's claim that *"models pretrained with the highest proportion
+of TinyGSM ... exhibit the largest performance gain from fine-tuning"*
+(Figure 5). On absolute gain tg30 wins (+2.96 vs +3.26 points — actually tg15
+again, marginally); on relative gain tg15 wins clearly. The paper does not
+distinguish the two, and at this token budget tg30 is closer to its ceiling, so
+its marginal return from RL is smaller.
+
+Unlike tg30, tg15 shows **no peak-and-decline** within one episode: pass@1 is
+still rising at step 116. It had further to go.
 
 ---
 

@@ -1,0 +1,22 @@
+[01:48] === 1/5 等 tg00 GRPO 结束 ===
+[04:00] tg00 GRPO 完成
+[04:00] === 2/5 tg00 RL checkpoint 评测（4 个点）===
+[04:00]   tg00-rl step 1
+[04:04]   tg00-rl step 20
+[04:08]   tg00-rl step 58
+[04:12]   tg00-rl step 116
+[04:16] === 3/5 tg15 预训练（1B tokens, ~3h37m）===
+[07:52] tg15 预训练完成
+[07:53] === 4/5 tg15 转换 + 评测 ===
+[07:53]   tg15 pass@1
+[07:55]   tg15 pass@64
+[08:40] === 5/5 tg15 GRPO（~1h20m）===
+[10:07] tg15 GRPO 完成
+[10:07] === 6/5 tg15 RL checkpoint 评测 ===
+[10:07]   tg15-rl step 1
+[10:10]   tg15-rl step 5
+[10:12]   tg15-rl step 14
+[10:14]   tg15-rl step 29
+[10:16]   tg15-rl step 58
+[10:18]   tg15-rl step 116
+[10:19] === 全部完成 ===

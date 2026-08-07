@@ -1,14 +1,14 @@
 # exp1 — Results
 
-`tg30` and `tg00` complete. `tg15` deferred (PLAN.md § Scope). Five of the
-authors' released 150M checkpoints evaluated with the same script for reference.
+All three groups complete. Five of the authors' released 150M checkpoints
+evaluated with the same script for reference.
 
 All numbers are GSM8K **test** (1,319 problems), scored by the paper's own
 `openrlhf/utils/math_verifier.py`.
 
 ---
 
-## The headline: format is a switch, capability is a dial
+## The headline: format saturates early, capability does not
 
 Greedy decoding, pass@1. Ours at 1B tokens; the authors' at 56–75B.
 
@@ -17,17 +17,33 @@ Greedy decoding, pass@1. Ours at 1B tokens; the authors' at 56–75B.
 | **0%** | **ours `tg00`** | **1B** | **0.00%** | 0.68% * |
 | 4.7% | `as_fm3_tg` | 56.3B | 96.74% | 24.03% |
 | 9.0% | `as_fm3_2xtg` | 58.9B | 99.01% | 26.23% |
+| **15%** | **ours `tg15`** | **1B** | **89.31%** | **3.87%** |
 | 16.6% | `as_fm3_4xtg` | 64.3B | 99.17% | 30.78% |
 | 28.4% | `as_fm3_8xtg` | 74.9B | 97.27% | 33.06% |
 | **30%** | **ours `tg30`** | **1B** | **97.12%** | **6.44%** |
 | 100% | `4xtg` | ~10.6B | 99.32% | 44.58% |
 
+Bold rows are ours, at 1B tokens; the rest are the authors' released
+checkpoints at 56–75B. **The two groups are not directly comparable** — mixture
+and budget both differ — which is exactly the confound the compute-matched rows
+below separate out.
+
 \* artifact, not capability — see § tg00 below.
 
-**`tinygsm-code_count` is a step function.** It goes 0% → 96.74% between 0% and
-4.7% TinyGSM, then moves 2.6 points over the next 20x of TinyGSM. Roughly 5% of
-the pretraining mixture is enough to fully determine how the model answers;
-everything beyond that is wasted on this axis.
+**`tinygsm-code_count` saturates early, but it is not a step function.** Read
+only the authors' row it looks like one — 0% to 4.7% appears to jump from 0 to
+96.74% — but those two points differ by 56x in tokens as well as in mixture. The
+three compute-matched groups separate the variables:
+
+```
+TinyGSM     0%        15%       30%
+code_count  0.00%  →  89.31%  →  97.12%
+text_count  100%   →  10.69%  →   2.88%
+```
+
+Steep but graded: 89 points of the change happen by 15%, the remaining 8 over
+the next 15. Roughly 15% of the mixture is enough to nearly fix how the model
+answers; beyond that the axis is close to exhausted.
 
 **pass@1 is monotone and unsaturated**: 24% → 26% → 31% → 33% → 45%. It keeps
 paying all the way to 100% TinyGSM.
@@ -58,6 +74,7 @@ already emitted 34.5% code-format answers.
 
 | | pass@64 | majority@64 | `tinygsm-code_count` | `text_count` |
 |---|---|---|---|---|
+| ours `tg15` | **45.49%** | 5.76% | 83.77% | 12.67% |
 | ours `tg30` | **50.57%** | 6.75% | 94.63% | 3.88% |
 | `as_fm3_8xtg` | **83.55%** | 35.56% | 89.13% | 10.29% |
 
