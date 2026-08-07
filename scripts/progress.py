@@ -180,11 +180,44 @@ def render():
     return "\n".join(L)
 
 
+def render_oneline():
+    """One compact line for the tmux status bar.
+
+    tmux blocks its own redraw on this command, so it must stay fast: only the
+    newest log is read and the per-checkpoint scan that render() does is
+    skipped. nvidia-smi costs ~50ms and is worth it.
+    """
+    a = active_run()
+    if not a:
+        busy = running("run_inference_all")
+        return "评测中" if busy else ("空闲" if not running("round2.sh|fill-curves.sh") else "阶段切换")
+    name, _, d, t, rate, eta = a
+    pct = 100 * d / t if t else 0
+    short = name.replace("grpo-", "").replace("train-", "")
+    out = f"{short} {d}/{t} {pct:.0f}%"
+    if rate:
+        out += f" {rate:.0f}s/it"
+    if eta:
+        out += f" eta {eta}"
+    try:
+        g = subprocess.run(["nvidia-smi", "--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"],
+                           capture_output=True, text=True, timeout=3).stdout.strip().split("\n")[0]
+        out += f" gpu{g}%"
+    except Exception:
+        pass
+    return out
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("-w", "--watch", nargs="?", type=int, const=15, default=None,
                    help="refresh every N seconds (default 15)")
+    p.add_argument("--oneline", action="store_true",
+                   help="single compact line, for a tmux status bar")
     args = p.parse_args()
+    if args.oneline:
+        print(render_oneline())
+        return 0
     if args.watch is None:
         print(render())
         return 0
