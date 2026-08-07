@@ -46,6 +46,13 @@ PY="${PY:-python}"
 # shifts toward generating answers in the format of one distribution -- TinyGSM
 # in this case -- within the first epoch." One episode should show it. Raise
 # this after seeing the KL curve, not before.
+#
+# UPDATE after the first round: the KL curve settles that. One episode ends at
+# 0.0150 (tg15) and 0.0145 (tg30) -- small enough that two episodes stay well
+# inside "amplification" rather than "retraining", so the step-ratio worry above
+# was theoretical and the measurement overrides it. tg15 also had not converged:
+# its best pass@1 was at the final step, still climbing, while tg30 peaked at
+# step 58 and declined. Two episodes is the right budget for a second round.
 EPISODES="${EPISODES:-1}"          # passes over GSM8K train (7473 prompts)
 KL_COEF="${KL_COEF:-1e-3}"         # middle of the paper's {0, 1e-3, 1e-2} sweep
 N_SAMPLES="${N_SAMPLES:-8}"        # generations per prompt; see the note below
@@ -63,6 +70,7 @@ mkdir -p "$OUT/ckpt"
 echo "pretrain : $PRETRAIN"
 echo "output   : $OUT"
 echo "episodes : $EPISODES   kl: $KL_COEF   n_samples: $N_SAMPLES"
+echo "resume   : ${LOAD_CKPT:+yes (from $OUT/ckpt/_actor)}${LOAD_CKPT:-no}"
 
 # Ray keeps state in /tmp across runs and a stale cluster silently reuses the
 # previous run's GPU reservations.
@@ -113,7 +121,18 @@ exec "$PY" -m openrlhf.cli.train_ppo_ray \
     `# Checkpoints on a log-scale step grid, which is what the paper's figures` \
     `# plot against: the format shift happens inside the first epoch, so evenly` \
     `# spaced checkpoints would miss it entirely.` \
-    --save_log_scale_count 15 --save_hf_ckpt --disable_ds_ckpt \
+    `# DeepSpeed state is kept (no --disable_ds_ckpt) so a run can be extended` \
+    `# later: rerun with LOAD_CKPT=1 and a larger EPISODES, and openrlhf reads` \
+    `# back consumed_samples from ckpt_path/_actor to resume at the right step` \
+    `# (ppo_actor.py:872). Without it only HF weights are written, and restarting` \
+    `# from those resets the optimizer and the cosine schedule -- the two halves` \
+    `# of the run then are not comparable.` \
+    `#` \
+    `# max_ckpt_num caps retention at 2. Note max_ckpt_mem is in GB, not bytes` \
+    `# (deepspeed.py:432 multiplies by 1024**3), so its 1e8 default never binds` \
+    `# and the count is the only real limit. Each checkpoint is ~2.5GB here.` \
+    --save_log_scale_count 15 --save_hf_ckpt --max_ckpt_num 2 \
+    ${LOAD_CKPT:+--load_checkpoint} \
     \
     --use_wandb true --wandb_project echo-chamber-rl \
     --wandb_group "grpo-150m" --wandb_prefix "$(basename "$PRETRAIN")" \
