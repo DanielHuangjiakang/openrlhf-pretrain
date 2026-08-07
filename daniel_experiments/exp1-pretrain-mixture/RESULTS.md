@@ -1,121 +1,143 @@
 # exp1 — Results
 
-Status as of 2026-08-06 17:00 UTC. `tg30` complete, `tg00` training, `tg15`
-deferred (see PLAN.md § Scope).
+`tg30` and `tg00` complete. `tg15` deferred (PLAN.md § Scope). Five of the
+authors' released 150M checkpoints evaluated with the same script for reference.
 
-| group | pretrain | pass@1 | pass@64 |
-|---|---|---|---|
-| `tg30` (30% TinyGSM) | done | done | done |
-| `tg00` (0% TinyGSM) | running | queued | queued |
-| `tg15` (15% TinyGSM) | deferred | — | — |
+All numbers are GSM8K **test** (1,319 problems), scored by the paper's own
+`openrlhf/utils/math_verifier.py`.
 
 ---
 
-## GSM8K test (1,319 problems)
+## The headline: format is a switch, capability is a dial
 
-### greedy — pass@1
+Greedy decoding, pass@1. Ours at 1B tokens; the authors' at 56–75B.
 
-| | **tg30**<br>30% TinyGSM, 1B tok | **tg00**<br>0% TinyGSM, 1B tok | **`as_fm3_8xtg`** (authors')<br>28.4% TinyGSM, 74.9B tok |
+| TinyGSM share | model | tokens | **`tinygsm-code_count`** | **pass@1** |
+|---|---|---|---|---|
+| **0%** | **ours `tg00`** | **1B** | **0.00%** | 0.68% * |
+| 4.7% | `as_fm3_tg` | 56.3B | 96.74% | 24.03% |
+| 9.0% | `as_fm3_2xtg` | 58.9B | 99.01% | 26.23% |
+| 16.6% | `as_fm3_4xtg` | 64.3B | 99.17% | 30.78% |
+| 28.4% | `as_fm3_8xtg` | 74.9B | 97.27% | 33.06% |
+| **30%** | **ours `tg30`** | **1B** | **97.12%** | **6.44%** |
+| 100% | `4xtg` | ~10.6B | 99.32% | 44.58% |
+
+\* artifact, not capability — see § tg00 below.
+
+**`tinygsm-code_count` is a step function.** It goes 0% → 96.74% between 0% and
+4.7% TinyGSM, then moves 2.6 points over the next 20x of TinyGSM. Roughly 5% of
+the pretraining mixture is enough to fully determine how the model answers;
+everything beyond that is wasted on this axis.
+
+**pass@1 is monotone and unsaturated**: 24% → 26% → 31% → 33% → 45%. It keeps
+paying all the way to 100% TinyGSM.
+
+The authors' lowest setting is 4.7%, where the format metric is already at
+ceiling — **the transition is not visible anywhere in their released models.**
+The 0% point is ours.
+
+### Token budget moves one and not the other
+
+At essentially the same mixture ratio:
+
+| | tokens | `tinygsm-code_count` | pass@1 |
 |---|---|---|---|
-| **pass@1** | **6.44%** | _pending_ | **33.06%** |
-| `tinygsm-code_count` | **97.12%** | _pending_ | **97.27%** |
-| `tinygsm-code_acc` | 6.64% | _pending_ | 33.98% |
-| `text_count` | 2.88% | _pending_ | 2.73% |
-| `text_acc` | 0.00% | _pending_ | 0.00% |
+| ours `tg30` (30%) | **1B** | **97.12%** | **6.44%** |
+| `as_fm3_8xtg` (28.4%) | **74.9B** | 97.27% | 33.06% |
+| difference | **75x** | **0.15 points** | **5.1x** |
 
-### sampled, n=64, temperature 0.7
-
-| | **tg30** | **tg00** | **`as_fm3_8xtg`** |
-|---|---|---|---|
-| **pass@64** | **50.57%** | _pending_ | **83.55%** |
-| **majority@64** | **6.75%** | _pending_ | **35.56%** |
-| `tinygsm-code_count` | 94.63% | _pending_ | 89.13% |
-| `tinygsm-code_acc` | 4.21% | _pending_ | 25.51% |
-| `text_count` | 3.88% | _pending_ | 10.29% |
-| `text_acc` | 1.49% | _pending_ | 1.49% |
+A 75-fold difference in compute moves the behaviour metric by 0.15 points and
+the accuracy metric by a factor of five. **Format preference and capability are
+separable, and the phenomenon this paper studies is the cheap one** — cheap
+enough that a 5M-parameter model trained for 50 steps during pipeline testing
+already emitted 34.5% code-format answers.
 
 ---
 
-## Findings so far
+## Sampled decoding, n=64, temperature 0.7
 
-### 1. The format behaviour is fully formed at 1B tokens
+| | pass@64 | majority@64 | `tinygsm-code_count` | `text_count` |
+|---|---|---|---|---|
+| ours `tg30` | **50.57%** | 6.75% | 94.63% | 3.88% |
+| `as_fm3_8xtg` | **83.55%** | 35.56% | 89.13% | 10.29% |
 
-`tinygsm-code_count` is **97.12%** for our 1B-token model against **97.27%** for
-the authors' model trained on **74.9B** tokens at essentially the same mixture
-ratio. A 75x difference in compute moves this metric by 0.15 points.
+**Correct answers are not the mode.** For half the problems tg30 gets at least
+one of 64 samples right, but the most common answer is right only 6.75% of the
+time. Each of the 64 attempts fails somewhere different. The gap —
+**pass@64 − pass@1 = +44.1 points** — is the headroom RL has to work with, and
+[exp2](../exp2-rl-amplification/RESULTS.md) measures what RL does with it.
 
-Accuracy, by contrast, differs 5x (6.44% vs 33.06%).
+**Sampling drives the better-trained model off-format, not ours.** Going greedy
+→ temperature 0.7, `tinygsm-code_count` falls 97.12% → 94.63% for tg30 but
+97.27% → **89.13%** for the authors' model. The model trained on 75x more data
+is *more* likely to leave the code format when sampled: its output distribution
+is broader, with real natural-language ability to fall back on. Ours is locked
+more rigidly onto the template. Format collapse is not purely a function of the
+mixture — how thoroughly the model was pretrained matters too.
 
-**Format preference and capability decouple.** The phenomenon the paper studies
-is the cheap one — cheap enough that a 5M-parameter model trained for 50 steps
-during pipeline testing already emitted 34.5% code-format answers.
-
-### 2. Correct answers are not the mode
-
-| | pass@1 | majority@64 | pass@64 |
-|---|---|---|---|
-| tg30 | 6.44% | 6.75% | **50.57%** |
-| authors' 8xtg | 33.06% | 35.56% | **83.55%** |
-
-For half the problems, at least one of 64 samples is right — but the most common
-answer is right only 6.75% of the time. Correct answers are rare individual
-draws, not a peak in the distribution. Each of the 64 attempts fails somewhere
-different.
-
-This is precisely the shape RL is meant to fix, and it quantifies the headroom:
-**+44.1 points** between pass@1 and pass@64 for tg30.
-
-### 3. Sampling drives the better-trained model off-format, not ours
-
-Going from greedy to temperature 0.7, `tinygsm-code_count` falls
-97.12% → 94.63% for tg30 but 97.27% → **89.13%** for the authors' model.
-
-The model trained on 75x more data is *more* likely to wander out of the code
-format when sampled. Its output distribution is broader — it has real natural
-language ability to fall back on. Our undertrained model is locked more rigidly
-onto the template.
-
-Worth noting for the paper's framing: the degree of format collapse depends on
-how thoroughly the model was pretrained.
-
-### 4. Neither model can answer in prose at all
-
-`text_acc = 0.00%` for both under greedy decoding. These models score entirely
-through "write Python, let the interpreter compute". They do not do arithmetic.
+**Neither model can answer in prose.** `text_acc = 0.00%` for every model in
+this table under greedy decoding. They score entirely through "write Python, let
+the interpreter compute".
 
 ---
 
-## Held-out language modelling
+## tg00: why its accuracy numbers are not measurements
 
-Same files for every group; the only cross-group comparable signal.
+`tg00` produces **no code at all** (`tinygsm-code_count = 0.00%`,
+`text_count = 100.00%`). Its outputs are unbounded repetition:
 
-### Final (tg30, step 1907)
+```
+Q: Every day, Wendi feeds each of her chickens three cups of ...   (gold: 20)
+A: 1. 20 cups of feed. 2. 20 cups of feed. 3. 20 cups of feed. ...  (x156)
+```
 
-| held-out set | CE loss | perplexity |
-|---|---|---|
-| tinygsm | 0.4602 | **1.58** |
-| algebraic-stack | 1.4106 | 4.10 |
-| finemath3 | 2.4079 | 11.11 |
+`math_verify` recovers "20" from that and scores it correct. **All 9 of its
+"correct" answers have the number buried past token ~1,000 inside the loop.**
+The 0.68% is the answer parser latching onto a number in a wall of repetition,
+not the model solving anything.
 
-### Cross-group at matched compute (step 200)
+**pass@64 was not measured for tg00**, deliberately. Nothing emits `</s>`, so
+51% of generations run to the 2,048-token cap and the median generation is 1,897
+tokens against tg30's 200. Evaluation runs at 5.7 sequences/s instead of 29 —
+**3.8 hours** to estimate a quantity that does not mean what the metric name
+implies. Truncating to speed it up would destroy the measurement rather than
+approximate it: capping at 512 tokens loses 9 of the 9 "correct" answers, and
+that zero would be an artifact of the cap, not a property of the model.
+
+`tinygsm-code_count = 0.00%` and `text_count = 100.00%` already characterise
+this model completely.
+
+### It can model TinyGSM without ever choosing to write it
 
 | held-out set | **tg00** (0%) | **tg30** (30%) | |
 |---|---|---|---|
-| **tinygsm** | 4.243 (ppl 69.6) | **1.753 (ppl 5.8)** | tg30 **12x** better |
-| algebraic-stack | **3.394** (ppl 29.8) | 3.511 (ppl 33.5) | tg00 11% better |
-| finemath3 | **4.387** (ppl 80.4) | 4.437 (ppl 84.5) | tg00 5% better |
+| **tinygsm** | 1.449 (ppl 4.3) | **0.460 (ppl 1.58)** | tg30 better by 0.99 nats |
+| algebraic-stack | **1.366** (ppl 3.9) | 1.411 (ppl 4.10) | tg00 better by 0.045 |
+| finemath3 | **2.351** (ppl 10.5) | 2.408 (ppl 11.11) | tg00 better by 0.057 |
 
-**The trade is extremely asymmetric.** Adding 30% TinyGSM buys 2.5 nats on
-TinyGSM and costs 0.05–0.12 nats on the background corpora — a 20–50x better
-return than cost. TinyGSM is templated and low-entropy, so a little goes a very
-long way; the displaced FineMath and Algebraic-Stack are high-entropy real text
-where losing 30% barely registers.
+tg00 reaches perplexity 4.3 on held-out TinyGSM having never seen a token of it,
+by transfer from Algebraic-Stack's mathematical code. **It can predict TinyGSM
+perfectly well. It just never chooses to produce it.**
 
-This also validates the data pipeline: tg00's TinyGSM held-out loss of 4.243
-confirms it has genuinely never seen TinyGSM. A slicing bug that leaked TinyGSM
-into tg00 would show up here immediately.
+Being able to model a distribution and being disposed to generate it are
+different things. The disposition comes from the *pairing* in the training data
+— TinyGSM pairs a word problem with a Python solution — not from exposure to
+code in general. This strengthens the paper's claim rather than weakening it.
 
-### tg30 held-out trajectory
+### The trade is 10x asymmetric
+
+Adding 30% TinyGSM buys **0.99 nats** on TinyGSM and costs **0.10 nats** across
+the two background corpora. TinyGSM is templated and low-entropy, so a little
+goes very far; the displaced FineMath and Algebraic-Stack are high-entropy real
+text where losing 30% barely registers.
+
+This also validates the data pipeline: tg00's TinyGSM held-out loss confirms it
+genuinely never saw TinyGSM. A slicing bug that leaked any into tg00 would show
+up here immediately.
+
+---
+
+## Held-out trajectory (tg30)
 
 | step | tokens | tinygsm | algebraic | finemath | Δ finemath |
 |---|---|---|---|---|---|
@@ -127,10 +149,10 @@ into tg00 would show up here immediately.
 | 1200 | 629M | 0.503 | 1.502 | 2.536 | −0.080 |
 | 1907 | 1000M | 0.460 | 1.411 | 2.408 | |
 
-Still descending at the end — 1B tokens is **not** saturated. Extrapolating the
+Still descending at the end — **1B tokens is not saturated**. Extrapolating the
 local power-law slope, each doubling of tokens buys roughly another 11% off the
-FineMath held-out loss. The absolute numbers would improve substantially at 10B;
-`tinygsm-code_count` would not, since it is already at the ceiling.
+FineMath held-out loss. Absolute accuracy would improve substantially at 10B;
+`tinygsm-code_count` would not, since it is already at ceiling.
 
 ---
 
@@ -140,14 +162,13 @@ FineMath held-out loss. The absolute numbers would improve substantially at 10B;
 |---|---|
 | Hardware | 1x RTX 4090 24GB, rented, $0.651/hr |
 | Model | 162,398,208 params (137,822,208 non-embedding) |
-| Throughput | 77,363 tok/s mean, min 77,171, max 77,757 over 1,906 samples |
+| Throughput | 77,363 tok/s mean; min 77,171, max 77,757 over 1,906 samples (±0.4%) |
 | MFU | 49% (81.4 of 165 TFLOPS bf16) |
-| GPU state | 67°C, 405/450 W (power-limited, not thermal), 100% util |
-| **tg30 pretraining** | 11:52:59 → 15:29:58 UTC = **3h37m** |
-| tg30 → HF conversion | 17 s |
-| tg30 pass@1 | 2.5 min |
-| tg30 pass@64 | 32 min |
-| **tg30 end to end** | **~4h12m** |
+| GPU | 67°C, 405/450 W — power-limited, not thermal — 100% util |
+| tg30 pretraining | 11:52:59 → 15:29:58 UTC = **3h37m** |
+| tg00 pretraining | 17:21 → 20:58 UTC = **3h37m** |
+| HF conversion | 17 s |
+| pass@1 | 2.5 min · pass@64 32 min (tg30-like models) |
 
 Corpus sizes, measured with the Llama-2 tokenizer rather than taken from dataset
 cards:
@@ -158,6 +179,6 @@ cards:
 | Algebraic-Stack | 6 / 79 | 0.923B | ~12.2B |
 | TinyGSM | 17 / 17 | 2.665B | 2.665B |
 
-One epoch of the full three-corpus mixture is ~56.3B tokens, which would be
-8.4 days per group on this GPU. That figure is also a consistency check on the
-paper's own setup: at 4xH200 it works out to roughly 16 hours per group.
+One epoch of the full three-corpus mixture is ~56.3B tokens — 8.4 days per group
+on this GPU. That figure also cross-checks the paper's own setup: on 4xH200 it
+works out to roughly 16 hours per group.

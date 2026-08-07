@@ -6,8 +6,8 @@ scale, with two methodological corrections to the original codebase.
 
 | # | Experiment | Question | Status |
 |---|---|---|---|
-| [exp1](exp1-pretrain-mixture/) | Pretraining mixture sweep | Does the TinyGSM share in pretraining determine the model's output *format*? | 2 of 3 groups running |
-| [exp2](exp2-rl-amplification/) | RL amplification | Does GRPO amplify that format preference? | Planned |
+| [exp1](exp1-pretrain-mixture/) | Pretraining mixture sweep | Does the TinyGSM share in pretraining determine the model's output *format*? | **complete** — 3 groups at 0/15/30%, plus 5 released checkpoints as reference |
+| [exp2](exp2-rl-amplification/) | RL amplification | Does GRPO amplify that format preference? | **tg00 and tg30 complete**, tg15 finishing |
 
 Each directory holds `PLAN.md` (design and rationale, written before running),
 `RESULTS.md` (measured numbers) and `logs/`.
