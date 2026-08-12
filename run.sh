@@ -9,6 +9,7 @@
 #   bash run.sh train tg30     # ~2-3h one group
 #   bash run.sh train all      #        all three, in order tg30 -> tg15 -> tg00
 #   bash run.sh eval           # ~30m  convert to HF + GSM8K
+#   bash run.sh go             #       data + train + eval, unattended (nohup this)
 #   bash run.sh status         #       where everything is
 #
 # Every stage is idempotent and resumable: rerun after an interruption and it
@@ -224,6 +225,26 @@ PY
     note "=== eval: done ==="
 }
 
+step_go() {
+    # data -> train all -> eval, unattended. Safe under nohup, safe to rerun:
+    # every stage below is idempotent, so a rerun after any interruption picks
+    # up where it stopped instead of redoing hours of work.
+    need_venv
+    note "############ go: data -> train -> eval ############"
+
+    if [[ -f "$MIX/manifest.json" ]]; then
+        note "=== data: already built, skipping ==="
+    else
+        step_data
+    fi
+
+    step_train all
+    step_eval
+
+    note "############ go: ALL DONE ############"
+    note "send back: workspace/status.txt"
+}
+
 step_status() {
     echo "GPUs: $NGPU"; nvidia-smi --query-gpu=index,name,memory.used,utilization.gpu --format=csv 2>/dev/null
     echo; echo "--- status.txt ---"; tail -30 "$STATUS" 2>/dev/null || echo "(nothing yet)"
@@ -252,6 +273,7 @@ case "${1:-}" in
     data)   step_data ;;
     train)  step_train "${2:-all}" ;;
     eval)   step_eval ;;
+    go)     step_go ;;
     status) step_status ;;
     *)      sed -n '2,20p' "$0"; exit 1 ;;
 esac
