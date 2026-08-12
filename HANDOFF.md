@@ -29,8 +29,16 @@
 | 1 | `bash run.sh env` | ~25 分 | 否 | 最后 30 行 |
 | 2 | `bash run.sh smoke` | ~15 分 | **是** | 整个输出 |
 | 3 | `bash run.sh data` | 30–60 分 | 否 | `workspace/status.txt` |
-| 4 | `bash run.sh train all` | 6–9 时 | **是** | `workspace/status.txt` |
+| 4 | `bash run.sh train all` | 5–9 时 | **是** | `workspace/status.txt` |
 | 5 | `bash run.sh eval` | ~30 分 | **是** | `workspace/status.txt` |
+
+**第 2 步过了之后，3–5 可以一条命令跑完，中间不需要任何操作：**
+
+```bash
+nohup bash run.sh go > workspace/go.log 2>&1 &
+```
+
+被中断了（任务被杀、机器重启）重跑同一条即可，会自动接上，不会重来。
 
 ### 开始之前
 
@@ -69,7 +77,9 @@ cd openrlhf-pretrain
 多卡通信、50 步真实训练。它失败的代价是 15 分钟，跳过它直接跑第 4 步、
 失败的代价是好几个小时。
 
-它跑完会打印实测吞吐（`tokens_per_second`），我用那个数字预估第 4 步要多久。
+它**不会**告诉你速度 —— 冒烟用的是个 5M 的小模型、每张卡每步只算 1 条序列，
+那个吞吐数字和真实训练差 128 倍，没有参考价值。真实速度在第 4 步开跑一分钟后
+用 `bash run.sh status` 就能看到，会直接显示剩余时间。
 
 ### 第 3 步不占 GPU
 
