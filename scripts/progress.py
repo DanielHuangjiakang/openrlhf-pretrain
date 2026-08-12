@@ -98,6 +98,25 @@ def active_run():
     return best
 
 
+def overall(label, done, total):
+    """Fold the episode counter into a single (done, total).
+
+    openrlhf's tqdm counter restarts at 0 every episode, so a two-episode GRPO
+    run reads 25/116 when it is really 141/232. Anything reporting one
+    completion figure -- the cmux progress bar above all -- has to use this, or
+    it shows 22% on a run that is 61% done and resets to zero halfway through.
+    """
+    ep = re.search(r"\[(\d+)/(\d+)\]", label or "")
+    if not ep or int(ep.group(2)) <= 1:
+        return done, total
+    cur, tot = int(ep.group(1)), int(ep.group(2))
+    return (cur - 1) * total + done, tot * total
+
+
+def fmt_hms(seconds):
+    return str(timedelta(seconds=int(seconds)))
+
+
 def curve_state():
     """How many checkpoints of each RL run have a finished evaluation."""
     rows = []
@@ -153,6 +172,15 @@ def render():
                          f"{(fin + timedelta(hours=LOCAL_OFFSET)):%H:%M} 本地")
             except Exception:
                 pass
+        # The counter above is per-episode, which is what the tqdm label says.
+        # For a multi-episode run that is not the number anyone actually wants.
+        od, ot = overall(label, d, t)
+        if ot != t:
+            L += ["", f"  {bar(od, ot)}  {od}/{ot}  {100 * od / ot:5.1f}%   ← 总进度"]
+            if rate:
+                fin = now + timedelta(seconds=(ot - od) * rate)
+                L.append(f"  {'':32}  剩 {fmt_hms((ot - od) * rate)}  →  {fin:%H:%M} UTC / "
+                         f"{(fin + timedelta(hours=LOCAL_OFFSET)):%H:%M} 本地")
     else:
         L.append("  ▸ 无活动任务（GPU 空闲或阶段切换中）")
     L.append("")
@@ -181,22 +209,30 @@ def render():
 
 
 def render_oneline():
-    """One compact line for the tmux status bar.
+    """One compact line for a status bar, always ending in `frac=<0..1>`.
 
-    tmux blocks its own redraw on this command, so it must stay fast: only the
-    newest log is read and the per-checkpoint scan that render() does is
-    skipped. nvidia-smi costs ~50ms and is worth it.
+    scripts/cmux-progress.sh drives cmux's native progress bar off that trailing
+    number, so parsing stays a single regex on the consumer side and the
+    episode arithmetic lives here, next to the log format it depends on.
+
+    Kept fast -- only the newest log is read, and the per-checkpoint scan that
+    render() does is skipped -- because a status bar polls it on a timer.
     """
     a = active_run()
     if not a:
         busy = running("run_inference_all")
         return "评测中" if busy else ("空闲" if not running("round2.sh|fill-curves.sh") else "阶段切换")
-    name, _, d, t, rate, eta = a
-    pct = 100 * d / t if t else 0
+    name, label, d, t, rate, eta = a
     short = name.replace("grpo-", "").replace("train-", "")
-    out = f"{short} {d}/{t} {pct:.0f}%"
+    od, ot = overall(label, d, t)
+    out = f"{short} {d}/{t}" if ot == t else f"{short} {od}/{ot}"
+    out += f" {100 * od / ot:.0f}%" if ot else " 0%"
     if rate:
         out += f" {rate:.0f}s/it"
+    # tqdm's own eta covers the current episode only; recompute across all of
+    # them whenever there is a rate to do it with.
+    if rate and ot != t:
+        eta = fmt_hms((ot - od) * rate)
     if eta:
         out += f" eta {eta}"
     try:
@@ -205,7 +241,7 @@ def render_oneline():
         out += f" gpu{g}%"
     except Exception:
         pass
-    return out
+    return out + f" frac={od / ot if ot else 0:.4f}"
 
 
 def main():

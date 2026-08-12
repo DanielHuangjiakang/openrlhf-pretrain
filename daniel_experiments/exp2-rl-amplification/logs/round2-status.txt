@@ -1,0 +1,19 @@
+[10:45] === tg15 GRPO 2 episodes 开始 ===
+[13:34] === tg15 GRPO 完成 ===
+[13:35]   tg15-2ep step 3
+[13:37]   tg15-2ep step 7
+[13:39]   tg15-2ep step 14
+[13:41]   tg15-2ep step 29
+[13:43]   tg15-2ep step 58
+[13:45]   tg15-2ep step 116
+[13:47]   tg15-2ep step 232
+[13:48] === tg30 GRPO 2 episodes 开始 ===
+[17:06] === tg30 GRPO 完成 ===
+[17:07]   tg30-2ep step 3
+[17:09]   tg30-2ep step 7
+[17:10]   tg30-2ep step 14
+[17:12]   tg30-2ep step 29
+[17:14]   tg30-2ep step 58
+[17:16]   tg30-2ep step 116
+[17:18]   tg30-2ep step 232
+[17:19] === 全部完成 ===

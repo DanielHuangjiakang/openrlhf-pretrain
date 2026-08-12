@@ -22,11 +22,11 @@ MIX_ROOT="$WORK/mixtures"
 SMOKE_ROOT="$WORK/smoke"
 
 TOKENIZER="${TOKENIZER:-meta-llama/Llama-2-7b-hf}" # gated; NousResearch/Llama-2-7b-hf is an ungated mirror
-SEQ_LEN=2048
-TOTAL_TOKENS=1e9
-ALIGN_TO=256    # = global_train_batch_size, so the run ends on a whole step
-HOLDOUT=2000    # blocks per source reserved for the held-out evaluators
-FRACTIONS="0,0.15,0.30"
+SEQ_LEN="${SEQ_LEN:-2048}"
+TOTAL_TOKENS="${TOTAL_TOKENS:-1e9}"
+ALIGN_TO="${ALIGN_TO:-256}"    # = global_train_batch_size, so the run ends on a whole step
+HOLDOUT="${HOLDOUT:-2000}"    # blocks per source reserved for the held-out evaluators
+FRACTIONS="${FRACTIONS:-0,0.15,0.30}"
 
 # Shard counts. A 1B-token budget needs at most 0.5B tokens from each background
 # source (the 0% group) and 0.3B from TinyGSM (the 30% group); these leave ~2x
@@ -42,9 +42,9 @@ FRACTIONS="0,0.15,0.30"
 #             ~34B total for finemath-3plus gives ~266M tok/shard.
 #   Algebraic 79 shards, 116 MB compressed each; at ~3-4x zstd and the measured
 #             2.94 chars/token that is ~118-157M tok/shard.
-SHARDS_FINEMATH=4    # >= 1.0B tokens even on the pessimistic estimate
-SHARDS_ALGEBRAIC=6   # >= 0.7B tokens
-SHARDS_TINYGSM=""    # empty = all 17 shards (~2.3B); it is small enough to take whole
+SHARDS_FINEMATH="${SHARDS_FINEMATH:-4}"    # >= 1.0B tokens even on the pessimistic estimate
+SHARDS_ALGEBRAIC="${SHARDS_ALGEBRAIC:-6}"   # >= 0.7B tokens
+SHARDS_TINYGSM="${SHARDS_TINYGSM:-}"    # empty = all 17 shards (~2.3B); it is small enough to take whole
 
 # Everything installs into a venv rather than the system interpreter. On Ubuntu
 # 24.04 that is not optional: PEP 668 marks the system Python as

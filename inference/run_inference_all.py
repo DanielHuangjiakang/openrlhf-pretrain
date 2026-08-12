@@ -25,6 +25,14 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output_key", type=str, default="answer")
     parser.add_argument("--no_greedy", action="store_true", default=False, help="Don't run pass@1 with greedy decoding.")
     parser.add_argument("--no_multiple", action="store_true", default=False, help="Don't run pass@k and maj@k.")
+    # pass@64 issues 1,319 x 64 = 84,416 generations, and vLLM's default cap of
+    # 256 concurrent sequences is the binding constraint for a 150M model on a
+    # 24GB card -- there is far more KV cache than the scheduler will use.
+    # Left at None so every earlier measurement reproduces byte-for-byte; raise
+    # it only for runs where throughput matters. Sampling is unaffected: this
+    # changes how many sequences are in flight, not how they are drawn.
+    parser.add_argument("--max_num_seqs", type=int, default=None,
+                        help="vLLM concurrent sequence cap (default: vLLM's own, 256).")
     args = parser.parse_args()
 
     config = datasets.DownloadConfig(resume_download=True, max_retries=100)
@@ -50,7 +58,10 @@ if __name__ == "__main__":
     
     hf_tokenizer = AutoTokenizer.from_pretrained(args.checkpoint_path)
     examples = [doc[args.input_key] for doc in tqdm(test)]
-    model = LLM(model=args.checkpoint_path)
+    llm_kwargs = {}
+    if args.max_num_seqs is not None:
+        llm_kwargs["max_num_seqs"] = args.max_num_seqs
+    model = LLM(model=args.checkpoint_path, **llm_kwargs)
     
     if not os.path.exists(args.checkpoint_path):
         sample_output_dir = Path("./baselines", args.checkpoint_path)

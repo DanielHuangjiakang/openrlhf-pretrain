@@ -1,0 +1,30 @@
+[14:13] 等 round2 结束...
+[17:19] round2 已结束，开始补齐
+[17:19] tg15-grpo 需补:  2 3 7 10 20 41 82
+[17:19]   tg15-grpo step 2
+[17:22]   tg15-grpo step 3
+[17:24]   tg15-grpo step 7
+[17:27]   tg15-grpo step 10
+[17:29]   tg15-grpo step 20
+[17:32]   tg15-grpo step 41
+[17:34]   tg15-grpo step 82
+[17:36] tg15-grpo-2ep 需补:  1 2 5 10 20 41 82 164
+[17:36]   tg15-grpo-2ep step 1
+[17:38]   tg15-grpo-2ep step 2
+[17:41]   tg15-grpo-2ep step 5
+[17:43]   tg15-grpo-2ep step 10
+[17:46]   tg15-grpo-2ep step 20
+[17:48]   tg15-grpo-2ep step 41
+[17:51]   tg15-grpo-2ep step 82
+[17:53]   tg15-grpo-2ep step 164
+[17:55] tg30-grpo 需补: （无）
+[17:55] tg30-grpo-2ep 需补:  1 2 5 10 20 41 82 164
+[17:56]   tg30-grpo-2ep step 1
+[17:58]   tg30-grpo-2ep step 2
+[18:00]   tg30-grpo-2ep step 5
+[18:02]   tg30-grpo-2ep step 10
+[18:05]   tg30-grpo-2ep step 20
+[18:07]   tg30-grpo-2ep step 41
+[18:09]   tg30-grpo-2ep step 82
+[18:12]   tg30-grpo-2ep step 164
+[18:14] === 补齐完成 ===

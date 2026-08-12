@@ -1,0 +1,17 @@
+{
+  "controls": [
+    {
+      "id": "pipeline",
+      "title": "训练进度",
+      "command": "bash scripts/cmux-progress.sh",
+      "cwd": ".",
+      "height": 380
+    },
+    {
+      "id": "logs",
+      "title": "日志",
+      "command": "ssh -t vast-4090 'tail -n 40 -F \"$(ls -t /root/*.log | head -1)\"'",
+      "cwd": "."
+    }
+  ]
+}

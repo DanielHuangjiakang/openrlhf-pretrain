@@ -91,10 +91,16 @@ Algebraic-Stack 12.2B, TinyGSM 2.66B tokens), their shares work out to:
 
 ## Scope
 
-`tg15` is deferred. `tg00` and `tg30` are the extremes; if 0% vs 30% shows no
-difference in `tinygsm-code_count`, the midpoint will not either. The remaining
-GPU time is better spent on exp2, which tests the part of the paper's claim that
-nothing here has verified yet.
+Planned as `tg00` and `tg30` only — the extremes; if 0% vs 30% showed no
+difference in `tinygsm-code_count`, the midpoint would not either, and the
+remaining GPU time was better spent on exp2.
+
+**`tg15` was run after all**, and the deferral turned out to be the wrong call.
+The extremes are 0.00% and 97.12%, which says nothing about the *shape* between
+them; `tg15`'s 89.31% is what shows the transition is steep-but-graded rather
+than a step function, and it is the only point either this study or the paper
+has below saturation. All three groups are reported in
+[RESULTS.md](RESULTS.md).
 
 ## Known limitation
 

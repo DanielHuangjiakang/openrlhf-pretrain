@@ -1,6 +1,11 @@
 # exp2 — Does RL amplify the pretrained format preference?
 
-**Status: planned, not started.** Waiting on exp1's `tg00` to finish.
+**Status: complete.** All three groups at 1 episode, `tg15`/`tg30` at 2, `tg30`
+at 3, with pass@64 at the endpoints. Results in [RESULTS.md](RESULTS.md).
+
+> This plan is left as written, including the predictions, so it can be scored
+> honestly. Where the study departed from it, the departure is recorded in
+> § What actually ran rather than by editing the plan.
 
 ## Question
 
@@ -17,6 +22,9 @@ different `tinygsm-code_count` and KL curves.
 GRPO on the two extremes from exp1 — `tg00` (0% TinyGSM) and `tg30` (30%).
 `tg15` is skipped for the same reason it was skipped in exp1: if the extremes do
 not separate, the midpoint will not.
+
+> ⚠️ Superseded on both counts — `tg15` was run, and the episode count grew to
+> 2 (and 3 for `tg30`). See § What actually ran at the end of this file.
 
 | | |
 |---|---|
@@ -119,3 +127,32 @@ confirm rollouts are non-empty, reward is not identically zero, and KL is finite
 ## Estimated cost
 
 ~1h20m per model, two models, on the same rented 4090. About $2.
+
+---
+
+## What actually ran
+
+Three departures from the plan above. The plan is not edited to match; this
+section is the record.
+
+**1. All three models, not two.** `tg15` was included because exp1 had already
+run it and it is the only condition below format saturation.
+
+**2. Episodes went 1 → 2 → 3, not 1.** The plan argued against more than one
+episode on a step-ratio basis (3 episodes = 147% of pretraining's optimizer
+steps) and said *"the way to settle it is the KL curve, not arithmetic."* The
+KL curve settled it in the opposite direction: it plateaus at 0.027 (`tg30`) and
+0.038 (`tg15`) and stays there, so the policy is not being retrained, and both
+models were still improving at the one-episode endpoint. The step-ratio worry
+was theoretical; the measurement overrode it. `tg30` is now on episode 3,
+resumed from the 2-episode optimizer state rather than restarted.
+
+**3. `tg00` was run for one episode and stopped.** It was flat on every metric
+across 13 checkpoints, for reasons that more episodes cannot fix
+(RESULTS.md § `tg00`).
+
+Actual cost: about 10 GPU-hours of training plus ~4 of evaluation, ≈ $9.
+
+The predictions above were scored against the measured results in
+[RESULTS.md § Predictions vs. outcomes](RESULTS.md#predictions-vs-outcomes) —
+one right, one right-for-the-wrong-reason, one understated, one wrong.

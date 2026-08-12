@@ -68,6 +68,12 @@ separable, and the phenomenon this paper studies is the cheap one** — cheap
 enough that a 5M-parameter model trained for 50 steps during pipeline testing
 already emitted 34.5% code-format answers.
 
+How cheap becomes clearer once RL enters: [exp2](../exp2-rl-amplification/RESULTS.md)
+moves the same metric **1.5 points in three hours of GRPO** on `tg30`, ten times
+further than 75x the pretraining compute does. Nothing below should be read as
+"`tinygsm-code_count` cannot move any more" — only that *pretraining tokens*
+stop moving it.
+
 ---
 
 ## Sampled decoding, n=64, temperature 0.7

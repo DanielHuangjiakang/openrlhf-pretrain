@@ -7,7 +7,28 @@ scale, with two methodological corrections to the original codebase.
 | # | Experiment | Question | Status |
 |---|---|---|---|
 | [exp1](exp1-pretrain-mixture/) | Pretraining mixture sweep | Does the TinyGSM share in pretraining determine the model's output *format*? | **complete** — 3 groups at 0/15/30%, plus 5 released checkpoints as reference |
-| [exp2](exp2-rl-amplification/) | RL amplification | Does GRPO amplify that format preference? | **tg00 and tg30 complete**, tg15 finishing |
+| [exp2](exp2-rl-amplification/) | RL amplification | Does GRPO amplify that format preference? | **complete** — all 3 groups, up to 3 GRPO episodes, with pass@64 at the endpoints |
+
+Headline: both halves of the paper's claim reproduce at 1B tokens — pretraining
+mixture sets the answer format, and GRPO pushes it further while roughly doubling
+accuracy — and the 0% group, which the paper does not have, shows RL amplifying
+**nothing** when pretraining installed nothing.
+
+| | TinyGSM | pass@1, pretrained → best GRPO | `text_count` (off-format output) |
+|---|---|---|---|
+| `tg00` | 0% | 0.68% → 0.68% | 100% → 100% |
+| `tg15` | 15% | 3.87% → 7.73% | 10.69% → 4.93% |
+| `tg30` | 30% | 6.44% → 13.87% | 2.88% → 1.29% |
+
+Two findings that go beyond the paper, both of which needed the study run longer
+than planned: RL has an **extension phase and a redistribution phase** — pass@64
+gains its entire +8.9 points in the first 58 of 348 steps and then never moves,
+while pass@1 keeps climbing — and **RL saturates**, with per-episode pass@1 gains
+of +5.0, +1.9, +0.5 points.
+
+Format collapse outlasts the accuracy gain where there is any format left to
+collapse: `tg15` does 80% of its collapsing after 84% of its accuracy gain is
+already banked. `tg30` starts at 97% code output and runs out of both at once.
 
 Each directory holds `PLAN.md` (design and rationale, written before running),
 `RESULTS.md` (measured numbers) and `logs/`.
