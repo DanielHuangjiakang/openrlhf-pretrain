@@ -9,7 +9,8 @@
 #   bash run.sh train tg30     # ~2-3h one group
 #   bash run.sh train all      #        all three, in order tg30 -> tg15 -> tg00
 #   bash run.sh eval           # ~30m  convert to HF + GSM8K
-#   bash run.sh go             #       data + train + eval, unattended (nohup this)
+#   bash run.sh grpo          # ~4-6h  GRPO on the pretrained models + eval
+#   bash run.sh go             #       everything above, unattended (nohup this)
 #   bash run.sh status         #       where everything is
 #
 # Every stage is idempotent and resumable: rerun after an interruption and it
@@ -40,6 +41,11 @@ export TOTAL_TOKENS=$((TOTAL_BLOCKS * SEQ_LEN))   # 8,860,467,200
 export ALIGN_TO=256
 export HOLDOUT=2000
 export FRACTIONS="0,0.15,0.30"
+
+# 2 episodes: at 1B the 1-episode runs had not converged and the 3rd added
+# nothing outside noise, so 2 is where the signal is. Same GRPO settings as
+# the 1B study so the two scales can be compared.
+GRPO_EPISODES="${GRPO_EPISODES:-2}"
 
 # Shard counts, from the measured per-shard block counts in the 1B manifest
 # (FineMath 158,070 blocks/shard, Algebraic-Stack 75,120). The 0% group is the
@@ -225,12 +231,56 @@ PY
     note "=== eval: done ==="
 }
 
+step_grpo() {
+    # GRPO on top of the pretrained models, then evaluate the log-scale
+    # checkpoint grid. Every hyperparameter is the one the 1B study used --
+    # rollout batch 64, 8 samples/prompt, train batch 64, lr 1e-6, KL 1e-3,
+    # temperature 0.7 -- so the two scales are directly comparable. Only the
+    # GPU placement differs, and placement changes no arithmetic.
+    need_venv
+    local which="${1:-all}"
+    local groups=(tg30 tg15 tg00)
+    [[ "$which" != "all" ]] && groups=("$which")
+
+    for g in "${groups[@]}"; do
+        local base="$CKPT/OLMo-150M-${g}-8b/latest-unsharded-hf"
+        local out="$CKPT/OLMo-150M-${g}-8b-grpo"
+        [[ -d "$base" ]] || { note "  skip grpo $g -- not pretrained/converted yet"; continue; }
+
+        if [[ -d "$out/ckpt" ]] && ls "$out/ckpt"/global_step*_hf >/dev/null 2>&1; then
+            note "=== grpo $g: checkpoints already exist, skipping training ==="
+        else
+            note "=== grpo $g: $GRPO_EPISODES episode(s) on $NGPU GPUs ==="
+            NGPU="$NGPU" EPISODES="$GRPO_EPISODES" PY="$PY" \
+                bash scripts/run_grpo_single.sh "$base" "$out" \
+                >>"$LOGS/grpo-${g}.log" 2>&1 \
+                || die "grpo $g failed -- send the last 100 lines of $LOGS/grpo-${g}.log"
+            note "=== grpo $g: training done ==="
+        fi
+
+        # Evaluate the grid. Idempotent: a checkpoint with final_accuracy already
+        # written is skipped, so an interrupted sweep resumes for free.
+        for p in "$out"/ckpt/global_step*_hf; do
+            [[ -d "$p" ]] || continue
+            tail -1 "$p/eval_gsm8k_1.json" 2>/dev/null | grep -q final_accuracy && continue
+            # openrlhf writes weights but not the tokenizer next to them.
+            for f in tokenizer.json tokenizer_config.json special_tokens_map.json tokenizer.model; do
+                [[ -f "$p/$f" ]] || cp "$base/$f" "$p/" 2>/dev/null
+            done
+            note "  eval $g $(basename "$p")"
+            "$PY" inference/run_inference_all.py -c "$p" -t gsm8k --no_multiple \
+                >>"$LOGS/grpo-eval.log" 2>&1 || note "    !! eval failed, continuing"
+        done
+        note "=== grpo $g: done ==="
+    done
+}
+
 step_go() {
     # data -> train all -> eval, unattended. Safe under nohup, safe to rerun:
     # every stage below is idempotent, so a rerun after any interruption picks
     # up where it stopped instead of redoing hours of work.
     need_venv
-    note "############ go: data -> train -> eval ############"
+    note "############ go: data -> train -> eval -> grpo ############"
 
     if [[ -f "$MIX/manifest.json" ]]; then
         note "=== data: already built, skipping ==="
@@ -240,6 +290,7 @@ step_go() {
 
     step_train all
     step_eval
+    step_grpo all
 
     note "############ go: ALL DONE ############"
     note "send back: workspace/status.txt"
@@ -273,6 +324,7 @@ case "${1:-}" in
     data)   step_data ;;
     train)  step_train "${2:-all}" ;;
     eval)   step_eval ;;
+    grpo)   step_grpo "${2:-all}" ;;
     go)     step_go ;;
     status) step_status ;;
     *)      sed -n '2,20p' "$0"; exit 1 ;;

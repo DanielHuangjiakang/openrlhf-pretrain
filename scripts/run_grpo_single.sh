@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 #
-# GRPO fine-tuning of one pretrained checkpoint on a single GPU.
+# GRPO fine-tuning of one pretrained checkpoint.
 #
 #   bash scripts/run_grpo_single.sh <hf-checkpoint-dir> [output-dir]
+#   NGPU=8 bash scripts/run_grpo_single.sh ...      # multi-GPU
+#
+# NGPU defaults to 1, so every invocation that produced the 1B results still
+# reproduces byte-for-byte. Only the placement changes with NGPU: rollout batch,
+# samples per prompt, train batch, learning rate and KL coefficient are all held,
+# so a run on 8 GPUs takes the same optimizer steps over the same data as a run
+# on 1 and the two are directly comparable.
 #
 # The repo ships scripts/ppo_sweep.py + run_ppo_sweep_1_gpu.sh for this, but
 # they are built around SLURM array jobs: they read $SLURM_ARRAY_TASK_ID to pick
@@ -53,6 +60,7 @@ PY="${PY:-python}"
 # was theoretical and the measurement overrides it. tg15 also had not converged:
 # its best pass@1 was at the final step, still climbing, while tg30 peaked at
 # step 58 and declined. Two episodes is the right budget for a second round.
+NGPU="${NGPU:-1}"                  # placement only; changes no hyperparameter
 EPISODES="${EPISODES:-1}"          # passes over GSM8K train (7473 prompts)
 KL_COEF="${KL_COEF:-1e-3}"         # middle of the paper's {0, 1e-3, 1e-2} sweep
 N_SAMPLES="${N_SAMPLES:-8}"        # generations per prompt; see the note below
@@ -96,10 +104,14 @@ exec "$PY" -m openrlhf.cli.train_ppo_ray \
     `# args.critic_pretrain = None), so only actor + ref + vLLM share the GPU.` \
     \
     --colocate_all_models --enable_prefix_caching --vllm_enable_sleep \
-    --vllm_num_engines 1 --vllm_tensor_parallel_size 1 \
+    `# One vLLM engine per GPU, tensor-parallel size 1. Sharding a 162M model` \
+    `# across GPUs would add all-reduces to every forward pass and save no` \
+    `# memory worth saving; running N independent engines instead makes` \
+    `# generation -- which dominates GRPO wall clock -- data-parallel.` \
+    --vllm_num_engines "$NGPU" --vllm_tensor_parallel_size 1 \
     --vllm_gpu_memory_utilization "$VLLM_MEM" \
-    --actor_num_nodes 1 --actor_num_gpus_per_node 1 \
-    --ref_num_nodes 1 --ref_num_gpus_per_node 1 \
+    --actor_num_nodes 1 --actor_num_gpus_per_node "$NGPU" \
+    --ref_num_nodes 1 --ref_num_gpus_per_node "$NGPU" \
     \
     `# openrlhf's built-in eval runs once before training and again per epoch,` \
     `# on a held-out slice of the prompt data, with temperature forced to 0` \
