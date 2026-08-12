@@ -14,7 +14,7 @@
 |---|---|
 | GPU | 8 张（H800/A100/H100 均可），**实际占用约 8–10 小时** |
 | 磁盘 | **约 250 GB**，在 `workspace/` 下 |
-| 时间 | 总跨度约一天，其中数据准备 3–5 小时是**纯 CPU**，那段时间 GPU 空着 |
+| 时间 | 总跨度约 8–12 小时，其中数据准备约 1 小时是**纯 CPU**，那段时间 GPU 空着 |
 | 外网 | 需要（下载数据集和依赖） |
 
 ---
@@ -28,7 +28,7 @@
 | 0 | `bash run.sh probe` | 30 秒 | 否 | 整个输出 |
 | 1 | `bash run.sh env` | ~25 分 | 否 | 最后 30 行 |
 | 2 | `bash run.sh smoke` | ~15 分 | **是** | 整个输出 |
-| 3 | `bash run.sh data` | 3–5 时 | 否 | `workspace/status.txt` |
+| 3 | `bash run.sh data` | 30–60 分 | 否 | `workspace/status.txt` |
 | 4 | `bash run.sh train all` | 6–9 时 | **是** | `workspace/status.txt` |
 | 5 | `bash run.sh eval` | ~30 分 | **是** | `workspace/status.txt` |
 
@@ -71,7 +71,7 @@ cd openrlhf-pretrain
 
 它跑完会打印实测吞吐（`tokens_per_second`），我用那个数字预估第 4 步要多久。
 
-### 第 3 步很久但不占 GPU
+### 第 3 步不占 GPU
 
 下载和分词是 CPU 密集的。这一步跑的时候 GPU 完全空闲，你可以拿去做别的事。
 中断了直接重跑同一条命令，会接着来，不会从头下。

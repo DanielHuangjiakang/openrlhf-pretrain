@@ -5,7 +5,7 @@
 #   bash run.sh probe          # 30s   read-only environment report
 #   bash run.sh env            # ~25m  install everything into workspace/venv
 #   bash run.sh smoke          # ~15m  END-TO-END rehearsal on tiny data. DO THIS.
-#   bash run.sh data           # ~3-5h download + tokenize + build mixtures (CPU)
+#   bash run.sh data           # ~30-60m download + tokenize + build mixtures (CPU)
 #   bash run.sh train tg30     # ~2-3h one group
 #   bash run.sh train all      #        all three, in order tg30 -> tg15 -> tg00
 #   bash run.sh eval           # ~30m  convert to HF + GSM8K
@@ -160,7 +160,7 @@ PY
 
 step_data() {
     need_venv
-    note "=== data: download + tokenize + mixtures (~3-5 h, CPU only) ==="
+    note "=== data: download + tokenize + mixtures (~30-60 min, CPU only) ==="
     note "  budget $TOTAL_TOKENS tokens/group  shards: fm=$SHARDS_FINEMATH as=$SHARDS_ALGEBRAIC tg=all"
     df -h "$WORK" | tail -1 | tee -a "$STATUS"
 
