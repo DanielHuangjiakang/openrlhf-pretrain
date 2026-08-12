@@ -49,6 +49,25 @@ export SHARDS_FINEMATH="${SHARDS_FINEMATH:-16}"
 export SHARDS_ALGEBRAIC="${SHARDS_ALGEBRAIC:-32}"
 export SHARDS_TINYGSM=""        # all 17; the 30% group needs every one of them
 
+# The three corpora are streamed straight out of HuggingFace by datatrove
+# (hf://datasets/...), and huggingface_hub caches every downloaded shard. The
+# default cache is ~/.cache/huggingface, which on a cluster is usually a small
+# home quota or a shared root partition -- ~80GB of parquet lands there and
+# fills it. Keep the cache next to everything else this run produces.
+export HF_HOME="${HF_HOME:-$WORK/hf-cache}"
+export HF_DATASETS_CACHE="${HF_DATASETS_CACHE:-$WORK/hf-cache/datasets}"
+export HF_HUB_ENABLE_HF_TRANSFER="${HF_HUB_ENABLE_HF_TRANSFER:-0}"
+
+# Ungated mirror of the Llama-2 tokenizer, so no HuggingFace account, token or
+# licence click-through is needed anywhere in this pipeline. Verified against
+# the tokenizer the 1B run actually used: tokenizer.model is byte-identical, and
+# tokenizer.json has the same vocab and the same 61,249 merges (serialised
+# differently by a newer `tokenizers`). TOKENIZER_SHA256 below is checked in the
+# smoke stage -- if HuggingFace ever repoints that repo, the run stops instead
+# of silently producing a corpus that cannot be compared with the 1B results.
+export TOKENIZER="${TOKENIZER:-NousResearch/Llama-2-7b-hf}"
+TOKENIZER_SHA256=9e556afd44213b6bd1be2b850ebbbd98f5481437a8021afaf58ee7fb1818d347
+
 mkdir -p "$WORK" "$LOGS"
 note() { printf '[%s] %s\n' "$(date -u +%m-%d\ %H:%M)" "$*" | tee -a "$STATUS"; }
 die()  { printf '\n!! %s\n' "$*" | tee -a "$STATUS" >&2; exit 1; }
@@ -98,6 +117,19 @@ step_env() {
 step_smoke() {
     need_venv
     note "=== smoke: rehearsal on tiny data (~15 min) ==="
+
+    note "  [0/4] tokenizer fingerprint"
+    "$PY" - "$TOKENIZER" "$TOKENIZER_SHA256" <<'PY' | tee -a "$STATUS" || die "tokenizer check failed"
+import hashlib, sys
+from huggingface_hub import hf_hub_download
+want = sys.argv[2]
+got = hashlib.sha256(open(hf_hub_download(sys.argv[1], "tokenizer.model"), "rb").read()).hexdigest()
+print(f"    {sys.argv[1]}\n    sha256 {got[:24]}...  {'OK' if got == want else 'MISMATCH'}")
+if got != want:
+    raise SystemExit(
+        f"tokenizer.model does not match the one the 1B run used ({want[:24]}...).\n"
+        "Block counts would differ and the two studies could not be compared.")
+PY
 
     note "  [1/4] allocator logic on synthetic files"
     "$PY" pretraining/data/test_build_mixture.py || die "allocator self-test failed"

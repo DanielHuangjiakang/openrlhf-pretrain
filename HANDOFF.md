@@ -37,12 +37,31 @@
 ```bash
 git clone -b echo-chamber-repro https://github.com/DanielHuangjiakang/openrlhf-pretrain.git
 cd openrlhf-pretrain
-
-# tokenizer 用非门控镜像，这样不需要 HuggingFace 账号或 token
-export TOKENIZER=NousResearch/Llama-2-7b-hf
 ```
 
-把这行 `export` 加进 `~/.bashrc`，或者每开一个新终端都执行一次。
+**不需要 HuggingFace 账号、token 或任何登录。** 全部资源都是公开可匿名下载的，
+已经逐个验证过。
+
+### 数据从哪来
+
+不需要你手动下载任何东西。`bash run.sh data` 会自动从 HuggingFace 拉取并直接分词
+（datatrove 流式读取，边下边处理）：
+
+| 数据集 | HuggingFace 仓库 | 取多少 |
+|---|---|---|
+| TinyGSM | `TinyGSM/TinyGSM` | 全部 17 个分片 |
+| FineMath-3+ | `HuggingFaceTB/finemath` | 16 / 128 个分片 |
+| Algebraic-Stack | `EleutherAI/proof-pile-2` | 32 / 79 个分片 |
+| tokenizer | `NousResearch/Llama-2-7b-hf` | 仅词表文件 |
+
+只取需要的分片，不是整个数据集 —— 所以是 ~80 GB 而不是几个 TB。
+
+**下载缓存会放在 `workspace/hf-cache/`**，不是默认的 `~/.cache/huggingface`。
+这是故意的：集群上家目录通常有配额，80 GB 会把它撑爆。所以确认 `workspace/`
+所在的分区有 250 GB 就够了，不用管家目录。
+
+如果你的机器需要走代理才能访问 HuggingFace，设好 `HTTPS_PROXY` 再跑；或者
+设 `export HF_ENDPOINT=https://hf-mirror.com` 走国内镜像。
 
 ### 第 2 步是关键 —— 请务必跑
 
