@@ -144,11 +144,17 @@ PY
         OLMo/scripts/train.py pretraining/configs/DEBUG-tiny.yaml \
         >"$LOGS/smoke-train.log" 2>&1 || die "multi-GPU training failed -- send $LOGS/smoke-train.log"
 
-    note "  [4/4] measured throughput"
-    grep -oE "throughput/total_tokens_per_second=[0-9.]+" "$LOGS/smoke-train.log" | tail -3 | tee -a "$STATUS" \
-        || note "    (no throughput line found; check $LOGS/smoke-train.log)"
+    note "  [4/4] sanity: loss moved, no NaN"
+    grep -oE "train/CrossEntropyLoss=[0-9.]+" "$LOGS/smoke-train.log" | sed -n '1p;$p' | tee -a "$STATUS"
+    grep -qiE "nan|inf" "$LOGS/smoke-train.log" && note "    !! NaN/Inf in the log -- send it back" || true
 
+    # Deliberately NOT reporting throughput here. DEBUG-tiny is a 5M model at
+    # seq 512 with global_train_batch_size 8 -- one sequence per GPU per step,
+    # 128x fewer tokens per step than the real run. Its tokens/s is dominated by
+    # communication overhead and predicts nothing. The real number appears in
+    # the first minute of `run.sh train` and is printed by `run.sh status`.
     note "=== smoke: PASSED. Safe to run 'data'. ==="
+    note "    (throughput is NOT measured here -- see 'run.sh status' once training starts)"
 }
 
 step_data() {
@@ -224,7 +230,17 @@ step_status() {
     echo; echo "--- training progress ---"
     for f in "$LOGS"/train-*.log; do
         [[ -f "$f" ]] || continue
-        printf "  %-24s %s\n" "$(basename "$f")" "$(grep -oE '\[step=[0-9]+/[0-9]+' "$f" | tail -1)"
+        local step tps eta
+        step="$(grep -oE '\[step=[0-9]+/[0-9]+' "$f" | tail -1 | tr -d '[step=')"
+        tps="$(grep -oE 'throughput/total_tokens_per_second=[0-9.]+' "$f" | tail -1 | cut -d= -f2)"
+        printf "  %-24s step %-14s %s tok/s" "$(basename "$f")" "${step:-?}" "${tps:-?}"
+        # Remaining wall clock, which is the number anyone actually wants.
+        if [[ -n "$tps" && "$step" == */* ]]; then
+            eta=$(awk -v s="${step%/*}" -v t="${step#*/}" -v r="$tps" \
+                  'BEGIN{if(r>0){x=(t-s)*256*2048/r; printf "%dh%02dm", x/3600, (x%3600)/60}}')
+            printf "   eta %s" "$eta"
+        fi
+        echo
     done
     echo; df -h "$WORK" | tail -1
 }
